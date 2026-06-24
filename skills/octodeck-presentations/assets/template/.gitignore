@@ -1,0 +1,8 @@
+node_modules/
+dist/
+dist-pptx/
+dist-pdf/
+dist-single/
+.vite/
+*.log
+.DS_Store

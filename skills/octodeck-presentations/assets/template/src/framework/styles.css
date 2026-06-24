@@ -1,0 +1,402 @@
+/* ============================================================
+   DECKT · COMPONENT STYLES
+   Every value here resolves to a --octo-* contract variable
+   (see contract.css). Themes restyle the deck purely by
+   supplying those variables — no rule here names a theme.
+   ============================================================ */
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--octo-bg);
+  color: var(--octo-fg);
+  font-family: var(--octo-font);
+  -webkit-font-smoothing: antialiased;
+}
+
+.octo-root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  outline: none;
+  background: var(--octo-bg);
+}
+
+/* The fixed-size design canvas, scaled to fit by the engine. It's a size
+   container, so slide content can size in cqw/cqh relative to the frame. */
+.octo-canvas {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: center center;
+  transform: translate(-50%, -50%);
+  overflow: hidden;
+  background: var(--octo-bg);
+  container-type: size;
+}
+
+/* Full-bleed decorative backdrop layer (gradients/aurora), behind slides. */
+.octo-canvas::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--octo-backdrop);
+  background-size: cover;
+  background-position: center;
+  -webkit-backdrop-filter: var(--octo-backdrop-filter);
+  backdrop-filter: var(--octo-backdrop-filter);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.octo-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.octo-slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--octo-pad);
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity var(--octo-dur) var(--octo-ease),
+              transform var(--octo-dur) var(--octo-ease);
+}
+.octo-slide.is-active  { opacity: 1; transform: none; }
+.octo-slide.is-leaving { opacity: 0; transform: translateY(-14px); }
+
+/* Typographic defaults so a bare <h1> looks right. */
+.octo-slide h1 { font-size: var(--octo-fs-title); line-height: 1.05; margin: 0 0 0.4em; }
+.octo-slide h2 { font-size: var(--octo-fs-h2); line-height: 1.1; margin: 0 0 0.5em; }
+.octo-slide h3 { font-size: var(--octo-fs-h3); margin: 0 0 0.5em; color: var(--octo-accent); }
+.octo-slide p,
+.octo-slide li { font-size: var(--octo-fs-body); line-height: var(--octo-leading); }
+.octo-slide :where(h1, h2, h3) {
+  font-family: var(--octo-font-heading);
+  font-weight: var(--octo-weight-heading);
+  letter-spacing: var(--octo-tracking-heading);
+}
+.octo-slide ul, .octo-slide ol { padding-left: 1.2em; }
+.octo-slide li { margin: 0.35em 0; }
+.octo-slide a { color: var(--octo-accent); }
+.octo-slide code {
+  font-family: var(--octo-font-mono);
+  background: var(--octo-panel-bg);
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+.octo-slide pre {
+  background: var(--octo-code-bg);
+  border: var(--octo-code-border);
+  border-radius: var(--octo-radius);
+  padding: 1.2em 1.4em;
+  overflow: auto;
+  font-size: clamp(0.8rem, 1.6cqw, 1.1rem);
+}
+.octo-slide pre code { background: none; padding: 0; }
+
+/* Fragments: hidden until stepped into. */
+.octo-slide [data-fragment] { opacity: 0; transition: opacity 0.3s ease; }
+.octo-slide [data-fragment].is-visible { opacity: 1; }
+
+/* Chrome */
+.octo-progressbar {
+  position: fixed;
+  top: 0; left: 0;
+  height: 3px;
+  width: 0;
+  background: var(--octo-progress);
+  transition: width var(--octo-dur) var(--octo-ease);
+  z-index: 10;
+}
+.octo-counter {
+  position: fixed;
+  bottom: 1rem; right: 1.25rem;
+  font-family: var(--octo-font-mono);
+  font-size: 0.85rem;
+  color: var(--octo-counter-fg);
+  letter-spacing: 0.05em;
+  z-index: 10;
+}
+
+/* ── Layout templates ─────────────────────────────────────── */
+.octo-layout { width: 100%; }
+
+.octo-header-slide { height: 100%; display: flex; flex-direction: column; }
+.octo-slide-header { flex: 0 0 auto; margin-bottom: clamp(1rem, 3cqh, 2.5rem); }
+.octo-header-slide .octo-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.octo-title-slide,
+.octo-section-slide,
+.octo-statement-slide { text-align: center; }
+
+.octo-title { font-size: var(--octo-fs-title); margin: 0.1em 0 0.3em; }
+.octo-title-slide .octo-lead,
+.octo-section-slide .octo-lead { color: var(--octo-fg-muted); max-width: 40ch; margin: 0 auto; }
+.octo-title-footer {
+  margin-top: clamp(2rem, 6cqh, 4rem);
+  color: var(--octo-fg-muted);
+  font-family: var(--octo-font-mono);
+  font-size: 0.9rem;
+}
+
+.octo-section-number {
+  font-size: clamp(4rem, 16cqw, 11rem);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--octo-accent);
+  opacity: 0.25;
+}
+.octo-section-title { font-size: clamp(2rem, 5cqw, 3.5rem); margin: 0.1em 0 0.3em; }
+
+.octo-statement {
+  font-size: clamp(1.8rem, 5cqw, 3.4rem);
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 0 auto;
+  max-width: 22ch;
+  border: 0;
+}
+.octo-cite { margin-top: 1.5rem; color: var(--octo-fg-muted); font-size: 1.1rem; }
+
+/* Heading paint via background-clip — supports solid OR gradient fills. */
+.octo-title,
+.octo-section-title,
+.octo-heading {
+  color: var(--octo-fg);
+  background-image: var(--octo-heading-fill);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.octo-kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--octo-accent);
+  margin-bottom: 0.6em;
+}
+.octo-heading { margin: 0; }
+.octo-subheading { color: var(--octo-fg-muted); margin: 0.4em 0 0; }
+.octo-note { color: var(--octo-fg-muted); font-size: var(--octo-fs-note) !important; }
+
+/* Columns / grid / stack */
+.octo-columns { display: grid; width: 100%; }
+.octo-col { min-width: 0; display: flex; flex-direction: column; }
+.octo-col > .octo-card { flex: 1 1 auto; }
+.octo-grid { display: grid; width: 100%; }
+.octo-stack { display: flex; flex-direction: column; }
+.octo-bullets { margin: 0; }
+
+/* Card / Code share the "panel" material role. */
+.octo-card,
+.octo-code {
+  background: var(--octo-panel-bg);
+  border: var(--octo-panel-border);
+  border-radius: var(--octo-panel-radius);
+  box-shadow: var(--octo-panel-shadow);
+  -webkit-backdrop-filter: var(--octo-panel-backdrop);
+  backdrop-filter: var(--octo-panel-backdrop);
+  position: relative;
+}
+.octo-card { padding: var(--octo-card-pad); display: flex; flex-direction: column; gap: 0.5rem; }
+.octo-code { margin: 0; }
+/* Specular sheen overlay — transparent unless a theme sets --octo-panel-sheen. */
+.octo-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--octo-panel-sheen);
+  pointer-events: none;
+}
+.octo-card > * { position: relative; }
+.octo-card.is-accent {
+  background: color-mix(in oklab, var(--octo-accent) 14%, var(--octo-panel-bg));
+  border-color: color-mix(in oklab, var(--octo-accent) 45%, transparent);
+}
+.octo-card-title { margin: 0; color: var(--octo-fg); font-size: clamp(1.1rem, 2.4cqw, 1.5rem); }
+.octo-card p, .octo-card li { font-size: clamp(0.95rem, 1.8cqw, 1.2rem) !important; }
+
+/* Metric */
+.octo-metric { display: flex; flex-direction: column; gap: 0.2rem; }
+.octo-metric-value {
+  font-size: clamp(2.4rem, 7cqw, 4.5rem);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--octo-accent);
+}
+.octo-metric-label { color: var(--octo-fg-muted); font-size: clamp(0.9rem, 1.8cqw, 1.15rem); }
+
+/* Figure */
+.octo-figure { margin: 0; display: flex; flex-direction: column; gap: 0.6rem; height: 100%; }
+.octo-figure img { width: 100%; min-height: 0; flex: 1 1 auto; border-radius: var(--octo-radius); }
+.octo-figure figcaption { color: var(--octo-fg-muted); font-size: 0.95rem; text-align: center; }
+
+/* ── Split: padded content + full-bleed media ─────────────────────────────── */
+.octo-split {
+  position: absolute;   /* fills the slide, ignoring its padding → media bleeds */
+  inset: 0;
+  display: grid;
+}
+.octo-split-content {
+  min-width: 0;
+  padding: var(--octo-pad);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.octo-split-media { position: relative; overflow: hidden; }
+.octo-split-media > * { width: 100%; height: 100%; }
+.octo-split-media img,
+.octo-split-media .octo-figure,
+.octo-split-media .octo-figure img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  border-radius: 0;
+  margin: 0;
+}
+
+/* ── Bento: span grid ─────────────────────────────────────────────────────── */
+.octo-bento { display: grid; width: 100%; height: 100%; grid-auto-rows: minmax(0, 1fr); }
+.octo-tile { overflow: hidden; }
+
+/* ── Sequence: process / timeline / agenda ────────────────────────────────── */
+.octo-sequence { counter-reset: octo-step; width: 100%; }
+.octo-step-marker {
+  flex: 0 0 auto;
+  width: 2.4rem; height: 2.4rem;
+  border-radius: 50%;
+  border: 1px solid var(--octo-border-strong);
+  display: grid; place-items: center;
+  position: relative;
+  color: var(--octo-accent);
+  font-family: var(--octo-font-mono);
+  font-size: 0.85rem;
+  background: var(--octo-bg);
+}
+.octo-sequence.is-numbered .octo-step-marker::before {
+  counter-increment: octo-step;
+  content: counter(octo-step, decimal-leading-zero);
+}
+.octo-step-label {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.75rem;
+  color: var(--octo-accent);
+}
+.octo-step-title { margin: 0.1em 0; font-size: clamp(1.1rem, 2.4cqw, 1.6rem); }
+.octo-step-content p,
+.octo-step-content li { font-size: clamp(0.9rem, 1.7cqw, 1.15rem) !important; color: var(--octo-fg-muted); }
+
+/* horizontal: markers in a row, connector spanning marker → next marker */
+.octo-sequence[data-orientation="horizontal"] { display: flex; gap: var(--octo-gap); align-items: stretch; }
+.octo-sequence[data-orientation="horizontal"] .octo-step {
+  flex: 1; min-width: 0; position: relative;
+  display: flex; flex-direction: column; gap: 0.5rem;
+}
+.octo-sequence[data-orientation="horizontal"].is-connected .octo-step:not(:last-child)::after {
+  content: ""; position: absolute;
+  top: 1.2rem;                          /* marker vertical center */
+  left: 2.7rem;                         /* just past this marker */
+  right: calc(-1 * var(--octo-gap));   /* reach the next marker's edge */
+  height: 1px; background: var(--octo-border);
+}
+
+/* vertical: marker column + content, connector spanning marker → next marker */
+.octo-sequence[data-orientation="vertical"] { display: flex; flex-direction: column; gap: var(--octo-gap); }
+.octo-sequence[data-orientation="vertical"] .octo-step {
+  display: grid; grid-template-columns: auto 1fr; gap: 1.1rem; align-items: start; position: relative;
+}
+.octo-sequence[data-orientation="vertical"].is-connected .octo-step:not(:last-child)::after {
+  content: ""; position: absolute;
+  top: 2.7rem;                          /* just below this marker */
+  bottom: calc(-1 * var(--octo-gap));  /* reach the next marker */
+  left: 1.2rem;                         /* marker horizontal center */
+  width: 1px; background: var(--octo-border); transform: translateX(-0.5px);
+}
+
+/* ── Quote / testimonial ──────────────────────────────────────────────────── */
+.octo-quote { margin: 0; max-width: 48ch; }
+.octo-quote-text {
+  margin: 0;
+  font-size: clamp(1.5rem, 3.4cqw, 2.6rem);
+  font-weight: 600;
+  line-height: 1.3;
+  text-wrap: balance;
+}
+.octo-quote-text::before { content: "\201C"; }
+.octo-quote-text::after { content: "\201D"; }
+.octo-quote-by { display: flex; align-items: center; gap: 0.9rem; margin-top: 1.5rem; }
+.octo-quote-avatar { width: 3rem; height: 3rem; border-radius: 50%; object-fit: cover; }
+.octo-quote-author { font-weight: 600; }
+.octo-quote-role { color: var(--octo-fg-muted); font-size: 0.9rem; }
+
+/* ── Logo wall ────────────────────────────────────────────────────────────── */
+.octo-logowall {
+  display: flex; flex-wrap: wrap;
+  align-items: center; justify-content: flex-start;
+}
+.octo-logo { max-height: 2.4rem; width: auto; opacity: 0.7; filter: grayscale(1); }
+
+/* ── Diagram ──────────────────────────────────────────────────────────────── */
+.octo-diagram { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.octo-diagram svg { width: 100%; height: 100%; overflow: visible; }
+
+/* Nodes (foreignObject HTML — reuse the panel material role). */
+.octo-dnode {
+  width: 100%; height: 100%;
+  display: grid; place-items: center; text-align: center;
+  padding: 0.3em 0.55em;
+  background: var(--octo-panel-bg);
+  border: var(--octo-panel-border);
+  border-radius: var(--octo-radius);
+  box-shadow: var(--octo-panel-shadow);
+  -webkit-backdrop-filter: var(--octo-panel-backdrop);
+  backdrop-filter: var(--octo-panel-backdrop);
+  color: var(--octo-fg);
+  font-family: var(--octo-font);
+  font-size: 21px;          /* viewBox units → scales with the SVG */
+  font-weight: 500;
+  line-height: 1.18;
+}
+.octo-dnode.is-pill { border-radius: 999px; }
+.octo-dnode.is-accent {
+  background: color-mix(in oklab, var(--octo-accent) 16%, var(--octo-panel-bg));
+  border-color: color-mix(in oklab, var(--octo-accent) 50%, transparent);
+}
+
+/* Edges */
+.octo-dedge { fill: none; stroke: var(--octo-border-strong); stroke-width: 2.5; }
+.octo-dedge.is-dashed { stroke-dasharray: 8 7; }
+.octo-diagram marker path { fill: var(--octo-border-strong); }
+/* Edge labels render as a clean chip (bg fill + hairline) rather than a
+   text halo, so they read as intentional and never smudge the line. */
+.octo-dedge-chip { fill: var(--octo-bg); stroke: var(--octo-border); stroke-width: 1.5; }
+.octo-dedge-label {
+  fill: var(--octo-fg-muted);
+  font-family: var(--octo-font-mono);
+  font-size: 19px;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .octo-slide, .octo-progressbar, .octo-slide [data-fragment] { transition-duration: 0.01ms !important; }
+}

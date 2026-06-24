@@ -1,0 +1,41 @@
+/* Radiant — reverse-engineered from radiant.tailwindui.com.
+   Expressive: Switzer at large display sizes, the cream→pink→purple brand
+   gradient, asymmetric one-big-corner cards, soft colored glow. */
+@import url("https://api.fontshare.com/v2/css?f[]=switzer@400,500,600,700&display=swap");
+
+[data-theme="radiant"] {
+  --octo-font: "Switzer", system-ui, sans-serif;
+  --octo-font-heading: "Switzer", system-ui, sans-serif;
+  --octo-weight-heading: 500;
+  --octo-tracking-heading: -0.035em;        /* very tight, like the source */
+  --octo-fs-title: clamp(3rem, 9vw, 8rem);   /* it goes big */
+
+  --octo-radius: 20px;
+  --octo-radius-lg: 32px;
+  --octo-panel-radius: 32px 8px 8px 8px;     /* signature one-big-corner card */
+  --octo-panel-shadow: 0 8px 30px lab(52 52 -20 / 0.12);
+
+  /* THE brand gradient (verbatim), reused as accent + ambient backdrop. */
+  --octo-accent-gradient:
+    linear-gradient(145deg in oklab, #fff1be 28%, #ee87cb 70%, #b060ff 100%);
+}
+
+[data-theme="radiant"][data-mode="light"] {
+  --octo-bg:     #ffffff;
+  --octo-fg:     lab(1.9 0.28 -5.49);
+  --octo-accent: #b060ff;
+  --octo-panel-bg: #ffffff;
+  --octo-backdrop:
+    radial-gradient(60% 55% at 12% -5%, color-mix(in oklab, #fff1be 55%, transparent), transparent 60%),
+    radial-gradient(55% 55% at 105% 110%, color-mix(in oklab, #b060ff 40%, transparent), transparent 60%);
+}
+
+[data-theme="radiant"][data-mode="dark"] {
+  --octo-bg:     lab(8 0.8 -12);
+  --octo-fg:     #f5f3ff;
+  --octo-accent: #ee87cb;
+  --octo-panel-bg: color-mix(in oklab, var(--octo-fg) 6%, transparent);
+  --octo-backdrop:
+    radial-gradient(60% 55% at 12% -5%, color-mix(in oklab, #ee87cb 35%, transparent), transparent 60%),
+    radial-gradient(55% 55% at 105% 110%, color-mix(in oklab, #b060ff 35%, transparent), transparent 60%);
+}

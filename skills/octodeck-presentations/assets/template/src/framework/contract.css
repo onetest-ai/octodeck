@@ -1,0 +1,77 @@
+/* ============================================================
+   DECKT · THEME CONTRACT
+   The public interface every theme fills. Components read ONLY
+   these --octo-* variables — never literals. A theme overrides
+   them under [data-theme="x"] (identity) and
+   [data-theme="x"][data-mode="m"] (light/dark seeds).
+
+   Most values DERIVE from a few seeds (bg / fg / accent) via
+   color-mix, so a basic theme only sets those per mode and the
+   rest stays coherent in both light and dark.
+   ============================================================ */
+
+:root {
+  /* ── SEEDS — the minimum a theme sets, usually per mode ── */
+  --octo-bg:     #0d1117;
+  --octo-fg:     #e6edf3;
+  --octo-accent: #58a6ff;
+
+  /* ── TYPE (identity, mode-independent) ── */
+  --octo-font:         ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --octo-font-heading: var(--octo-font);
+  --octo-font-mono:    ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+  --octo-weight-heading:   700;
+  --octo-tracking-heading: -0.02em;
+  --octo-leading:          1.5;
+
+  --octo-fs-title: clamp(2.6rem, 7cqw, 5rem);
+  --octo-fs-h2:    clamp(1.6rem, 4cqw, 3rem);
+  --octo-fs-h3:    clamp(1.2rem, 3cqw, 2rem);
+  --octo-fs-body:  clamp(1rem, 2.4cqw, 1.6rem);
+  --octo-fs-note:  1rem;
+
+  /* ── DERIVED COLOR (override only when a theme needs to) ── */
+  --octo-surface:       color-mix(in oklab, var(--octo-bg), var(--octo-fg) 5%);
+  --octo-surface-2:     color-mix(in oklab, var(--octo-bg), var(--octo-fg) 9%);
+  --octo-overlay:       color-mix(in oklab, var(--octo-bg), var(--octo-fg) 14%);
+  --octo-fg-muted:      color-mix(in oklab, var(--octo-fg), var(--octo-bg) 38%);
+  --octo-fg-subtle:     color-mix(in oklab, var(--octo-fg), var(--octo-bg) 58%);
+  --octo-border:        color-mix(in oklab, var(--octo-fg) 14%, transparent);
+  --octo-border-strong: color-mix(in oklab, var(--octo-fg) 26%, transparent);
+  --octo-on-accent:     color-mix(in oklab, var(--octo-accent), black 78%);
+  --octo-accent-2:      var(--octo-accent);
+  /* Heading paint, applied via background-clip so a gradient "just works".
+     Default is a solid-color gradient (= the fg color); themes may set a real
+     gradient for gradient-text headings. */
+  --octo-heading-fill:  linear-gradient(0deg, var(--octo-fg), var(--octo-fg));
+
+  /* ── GEOMETRY ── */
+  --octo-radius:    14px;
+  --octo-radius-lg: 20px;
+  --octo-pad:       clamp(1.5rem, 5cqw, 5rem);
+  --octo-gap:       2.5rem;
+
+  /* ── MATERIAL — the "panel" surface role (Card, Code, …) ── */
+  --octo-panel-bg:       color-mix(in oklab, var(--octo-fg) 4%, transparent);
+  --octo-panel-border:   1px solid var(--octo-border);
+  --octo-panel-radius:   var(--octo-radius);
+  --octo-panel-shadow:   none;
+  --octo-panel-backdrop: none;   /* backdrop-filter value (glass themes set blur) */
+  --octo-panel-sheen:    none;   /* ::before background (glass specular) */
+  --octo-card-pad:       clamp(1rem, 2.5cqw, 1.75rem);
+
+  --octo-code-bg:     var(--octo-surface);
+  --octo-code-border: var(--octo-panel-border);
+
+  /* ── DECORATION ── */
+  --octo-backdrop:        none;  /* full-bleed background layer behind slides */
+  --octo-backdrop-filter: none;
+
+  /* ── CHROME ── */
+  --octo-progress:   var(--octo-accent);
+  --octo-counter-fg: var(--octo-fg-muted);
+
+  /* ── MOTION ── */
+  --octo-dur:  0.35s;
+  --octo-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}

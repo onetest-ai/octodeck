@@ -1,0 +1,29 @@
+/* Commit — "Protocol but dark". Dark-first flat changelog aesthetic.
+   DRAFT: hand-set from the family resemblance to Protocol; refine exact tokens
+   with `npm run extract-theme https://commit.tailwindui.com commit`. */
+@import url("https://rsms.me/inter/inter.css");
+
+[data-theme="commit"] {
+  --octo-font: "Inter", system-ui, sans-serif;
+  --octo-font-heading: "Inter", system-ui, sans-serif;
+  --octo-weight-heading: 600;
+  --octo-tracking-heading: -0.01em;
+  --octo-radius: 8px;
+  --octo-radius-lg: 12px;
+  --octo-panel-shadow: none;          /* flat, like Protocol */
+  --octo-panel-radius: 10px;
+}
+
+[data-theme="commit"][data-mode="dark"] {
+  --octo-bg:     oklch(0.17 0.008 277);    /* warm near-black */
+  --octo-fg:     oklch(0.95 0.005 277);
+  --octo-accent: #a78bfa;                   /* violet-400 */
+  --octo-panel-bg: color-mix(in oklab, var(--octo-fg) 4%, transparent);
+}
+
+[data-theme="commit"][data-mode="light"] {
+  --octo-bg:     #fbfbfd;
+  --octo-fg:     oklch(0.2 0.01 277);
+  --octo-accent: #7c3aed;                   /* violet-600 */
+  --octo-panel-bg: color-mix(in oklab, var(--octo-fg) 3%, transparent);
+}

@@ -1,0 +1,130 @@
+/* ============================================================
+   OCTO · LIQUID GLASS MATERIAL TOKENS
+   The defining layer. Glass is a stack of effects:
+   translucent tint + backdrop blur/saturate + top specular
+   highlight (border) + soft ambient drop shadow + an inner
+   sheen. Tiers go regular → thick by opacity & blur radius.
+   Helper classes (.glass, .glass--thin, …) compose them.
+   ============================================================ */
+
+:root {
+  /* --- Translucent tints (over dark canvas) --------------- */
+  --glass-tint-ultrathin: oklch(0.62 0.02 255 / 0.10);
+  --glass-tint-thin:      oklch(0.55 0.02 255 / 0.16);
+  --glass-tint:           oklch(0.50 0.02 255 / 0.26);
+  --glass-tint-thick:     oklch(0.42 0.02 255 / 0.42);
+  --glass-tint-bright:    oklch(0.92 0.01 250 / 0.10); /* light glass chip */
+
+  /* Tinted (voice-colored) glass */
+  --glass-tint-voice:   oklch(0.79 0.132 214 / 0.16);
+  --glass-tint-violet:  oklch(0.68 0.166 290 / 0.18);
+
+  /* --- Backdrop filters ----------------------------------- */
+  --glass-blur-sm:   blur(8px) saturate(150%);   /* @kind other */
+  --glass-blur:      blur(18px) saturate(165%);  /* @kind other */
+  --glass-blur-lg:   blur(32px) saturate(180%);  /* @kind other */
+  --glass-blur-xl:   blur(48px) saturate(190%);  /* @kind other */
+
+  /* --- Specular edge (the lit rim of glass) --------------- */
+  /* Applied as border-image / box-shadow inset highlight */
+  --glass-edge-hi:  oklch(1 0 0 / 0.45);   /* top-left lit */
+  --glass-edge-lo:  oklch(1 0 0 / 0.06);   /* bottom shade */
+  --glass-border:   1px solid oklch(1 0 0 / 0.14); /* @kind other */
+
+  /* Inner sheen: bright top inset + faint bottom inset */
+  --glass-inner-sheen:
+    inset 0 1px 0 0 oklch(1 0 0 / 0.28),
+    inset 0 0 0 1px oklch(1 0 0 / 0.06),
+    inset 0 -10px 24px -18px oklch(1 0 0 / 0.30); /* @kind shadow */
+
+  /* --- Ambient drop shadows (depth) ----------------------- */
+  --shadow-xs:  0 1px 2px oklch(0 0 0 / 0.40);
+  --shadow-sm:  0 2px 8px oklch(0 0 0 / 0.36);
+  --shadow-md:  0 8px 24px -6px oklch(0 0 0 / 0.46);
+  --shadow-lg:  0 20px 48px -12px oklch(0 0 0 / 0.55);
+  --shadow-xl:  0 36px 80px -20px oklch(0 0 0 / 0.62);
+
+  /* Colored glows (voice presence) */
+  --glow-voice:  0 0 0 1px oklch(0.79 0.132 214 / 0.30),
+                 0 8px 40px -6px oklch(0.79 0.132 214 / 0.45);
+  --glow-violet: 0 0 0 1px oklch(0.68 0.166 290 / 0.30),
+                 0 8px 40px -6px oklch(0.68 0.166 290 / 0.50);
+
+  /* --- Corner radii (squircle-leaning, concentric) -------- */
+  --r-xs:   8px;
+  --r-sm:   12px;
+  --r-md:   16px;
+  --r-lg:   22px;
+  --r-xl:   28px;
+  --r-2xl:  36px;
+  --r-pill: 999px;
+}
+
+/* ============================================================
+   GLASS HELPER CLASSES
+   Compose tint + blur + edge + sheen + shadow in one place.
+   ============================================================ */
+
+.glass,
+.glass--regular {
+  background: var(--glass-tint);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  box-shadow: var(--glass-inner-sheen), var(--shadow-md);
+  border-radius: var(--r-lg);
+}
+
+.glass--ultrathin {
+  background: var(--glass-tint-ultrathin);
+  backdrop-filter: var(--glass-blur-sm);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  border: var(--glass-border);
+  box-shadow: var(--glass-inner-sheen), var(--shadow-xs);
+  border-radius: var(--r-md);
+}
+
+.glass--thin {
+  background: var(--glass-tint-thin);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  box-shadow: var(--glass-inner-sheen), var(--shadow-sm);
+  border-radius: var(--r-lg);
+}
+
+.glass--thick {
+  background: var(--glass-tint-thick);
+  backdrop-filter: var(--glass-blur-lg);
+  -webkit-backdrop-filter: var(--glass-blur-lg);
+  border: var(--glass-border);
+  box-shadow: var(--glass-inner-sheen), var(--shadow-lg);
+  border-radius: var(--r-xl);
+}
+
+.glass--voice {
+  background: var(--glass-tint-voice);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid oklch(0.79 0.132 214 / 0.35);
+  box-shadow: var(--glass-inner-sheen), var(--glow-voice);
+  border-radius: var(--r-lg);
+}
+
+/* Specular highlight overlay — add as a ::before on any glass.
+   A diagonal sweep that reads as light catching the surface. */
+.glass-specular::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    135deg,
+    oklch(1 0 0 / 0.22) 0%,
+    oklch(1 0 0 / 0.04) 22%,
+    transparent 46%,
+    transparent 100%
+  );
+  mix-blend-mode: screen;
+}

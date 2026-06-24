@@ -1,0 +1,34 @@
+/* Protocol — reverse-engineered from protocol.tailwindui.com.
+   Flat technical-docs material: hairline borders, no shadow, 8px radius. */
+@import url("https://rsms.me/inter/inter.css");
+
+[data-theme="protocol"] {
+  --octo-font: "Inter", system-ui, sans-serif;
+  --octo-font-heading: "Inter", system-ui, sans-serif;
+  --octo-weight-heading: 700;
+  --octo-tracking-heading: -0.01em;
+
+  --octo-radius: 8px;
+  --octo-radius-lg: 12px;
+
+  /* flat material */
+  --octo-panel-shadow: none;
+  --octo-panel-radius: 8px;
+}
+
+[data-theme="protocol"][data-mode="dark"] {
+  --octo-bg:     oklch(0.21 0.006 286);   /* zinc-900 */
+  --octo-fg:     oklch(0.96 0.004 286);
+  --octo-accent: #10b981;                  /* emerald-500 */
+  --octo-panel-bg: color-mix(in oklab, var(--octo-fg) 4%, transparent);
+}
+
+[data-theme="protocol"][data-mode="light"] {
+  --octo-bg:     #ffffff;
+  --octo-fg:     #18181b;
+  --octo-accent: #059669;                  /* emerald-600 for contrast on white */
+  --octo-panel-bg: color-mix(in oklab, var(--octo-fg) 3%, transparent);
+  /* Protocol keeps code blocks dark even in light mode. */
+  --octo-code-bg: oklch(0.21 0.006 286);
+  --octo-code-border: 1px solid transparent;
+}

@@ -1,0 +1,95 @@
+/* ============================================================
+   OCTO · COLOR TOKENS
+   Dark-first system. Liquid Glass refracts a living canvas,
+   so colors are tuned for translucency over a deep cool ink.
+   Base ramps in oklch for perceptual harmony; semantic aliases
+   below map them to roles. Voice = LiveKit cyan (#1FD5F9).
+   ============================================================ */
+
+:root {
+  /* --- Cool ink neutrals (canvas → text) ------------------ */
+  --ink-980: oklch(0.13 0.012 260);
+  --ink-950: oklch(0.16 0.015 260);
+  --ink-900: oklch(0.20 0.018 260);
+  --ink-850: oklch(0.24 0.020 260);
+  --ink-800: oklch(0.28 0.022 258);
+  --ink-700: oklch(0.36 0.024 256);
+  --ink-600: oklch(0.46 0.024 254);
+  --ink-500: oklch(0.56 0.022 252);
+  --ink-400: oklch(0.66 0.018 250);
+  --ink-300: oklch(0.75 0.015 248);
+  --ink-200: oklch(0.84 0.012 246);
+  --ink-100: oklch(0.91 0.010 244);
+  --ink-50:  oklch(0.96 0.008 242);
+  --white:   oklch(0.99 0.004 240);
+
+  /* --- Voice cyan (primary) ------------------------------- */
+  --cyan-200: oklch(0.92 0.066 206);
+  --cyan-300: oklch(0.88 0.094 208);
+  --cyan-400: oklch(0.83 0.118 211);
+  --cyan-500: oklch(0.79 0.132 214); /* ≈ #1FD5F9 brand voice */
+  --cyan-600: oklch(0.70 0.130 220);
+  --cyan-700: oklch(0.60 0.118 226);
+  --cyan-800: oklch(0.48 0.098 230);
+
+  /* --- Agent-state spectrum ------------------------------- */
+  --violet-400: oklch(0.76 0.140 292); /* speaking */
+  --violet-500: oklch(0.68 0.166 290);
+  --violet-600: oklch(0.60 0.176 289);
+  --amber-400:  oklch(0.84 0.124 82);  /* thinking */
+  --amber-500:  oklch(0.79 0.140 78);
+  --mint-400:   oklch(0.84 0.120 168); /* success / live */
+  --mint-500:   oklch(0.78 0.138 166);
+  --rose-400:   oklch(0.72 0.168 22);  /* end / error */
+  --rose-500:   oklch(0.65 0.196 25);
+
+  /* --- Aurora backdrop accents (behind glass) ------------- */
+  --aurora-a: oklch(0.45 0.16 250);
+  --aurora-b: oklch(0.50 0.15 300);
+  --aurora-c: oklch(0.55 0.14 200);
+
+  /* ========================================================
+     SEMANTIC ALIASES
+     ======================================================== */
+
+  /* Canvas & surfaces (opaque fallbacks) */
+  --canvas:          var(--ink-980);
+  --surface-sunken:  var(--ink-950);
+  --surface-raised:  var(--ink-900);
+  --surface-overlay: var(--ink-850);
+
+  /* Text */
+  --text-strong:    var(--ink-50);
+  --text-body:      var(--ink-200);
+  --text-secondary: var(--ink-400);
+  --text-muted:     var(--ink-500);
+  --text-disabled:  var(--ink-600);
+  --text-inverse:   var(--ink-980);
+  --text-on-accent: var(--ink-980);
+
+  /* Brand / voice */
+  --voice:          var(--cyan-500);
+  --voice-strong:   var(--cyan-400);
+  --voice-dim:      var(--cyan-700);
+  --accent:         var(--cyan-500);
+
+  /* State colors (agent) */
+  --state-idle:       var(--ink-400);
+  --state-connecting: var(--ink-300);
+  --state-listening:  var(--cyan-500);
+  --state-thinking:   var(--amber-500);
+  --state-speaking:   var(--violet-500);
+  --state-live:       var(--mint-500);
+  --state-ended:      var(--rose-500);
+
+  /* Feedback */
+  --success: var(--mint-500);
+  --warning: var(--amber-500);
+  --danger:  var(--rose-500);
+  --info:    var(--cyan-500);
+
+  /* Lines */
+  --hairline:        oklch(1 0 0 / 0.08);
+  --hairline-strong: oklch(1 0 0 / 0.14);
+  --focus-ring:      var(--cyan-400);
+}

@@ -1,0 +1,41 @@
+# dependencies
+node_modules/
+
+# build outputs (regenerable)
+dist/
+dist-pptx/
+dist-pdf/
+dist-single/
+.vite/
+
+# regenerable caches (baked via `npm run pptx:bake`)
+scripts/pptx/backdrops/
+
+# secrets / local config — DO NOT COMMIT
+.mcp.json
+.env
+.env.*
+*.local
+
+# local tooling / agent state (not part of the distributable)
+.claude/
+.playwright-mcp/
+.agents/
+
+# legacy singular skill dir (eval scratch); canonical skill is skills/
+skill/
+
+# deck-research inputs (not part of the framework)
+input/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# logs
+*.log
+npm-debug.log*
+dist-*/

@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# don't let the playwright devDep pull ~150MB of browsers in CI (we don't run exports here)
+env:
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+
+      - name: Typecheck + build
+        run: npm run build
+
+      - name: Validate SKILL.md (agentskills.io spec)
+        run: npm run skill:validate
+
+      - name: Regenerate the bundled skill template
+        run: npm run skill:assets
+
+      - name: Guard — bundle must be in sync with repo source
+        run: |
+          if git diff --quiet -- skills/octodeck-presentations/assets/template; then
+            echo "✓ bundled template is in sync"
+          else
+            echo "::error::skills/octodeck-presentations/assets/template/ is stale."
+            echo "Run 'npm run skill:assets' locally and commit the result."
+            git --no-pager diff --stat -- skills/octodeck-presentations/assets/template
+            exit 1
+          fi

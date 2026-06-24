@@ -1,0 +1,54 @@
+/* Octo · Liquid Glass — adapter over the @octo/ui design system.
+   The design system's tokens are vendored (token CSS only — no React), then
+   mapped onto Octodeck's contract. The glass material flows straight through. */
+@import "./vendor/colors.css";
+@import "./vendor/typography.css";
+@import "./vendor/spacing.css";
+@import "./vendor/glass.css";
+@import "./vendor/motion.css";
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono&display=swap");
+
+[data-theme="octo-glass"] {
+  /* type */
+  --octo-font:         var(--font-sans);
+  --octo-font-heading: var(--font-sans);
+  --octo-font-mono:    var(--font-mono);
+  --octo-weight-heading:   600;
+  --octo-tracking-heading: -0.015em;
+  --octo-radius:    var(--r-md);
+  --octo-radius-lg: var(--r-lg);
+
+  /* material — bound straight to the design system */
+  --octo-panel-bg:       var(--glass-tint);
+  --octo-panel-border:   var(--glass-border);
+  --octo-panel-radius:   var(--r-lg);
+  --octo-panel-shadow:   var(--glass-inner-sheen), var(--shadow-md);
+  --octo-panel-backdrop: var(--glass-blur);
+  --octo-panel-sheen:
+    linear-gradient(135deg, oklch(1 0 0 / 0.22) 0%, oklch(1 0 0 / 0.04) 22%, transparent 46%);
+  --octo-code-bg:     var(--glass-tint-thin);
+  --octo-code-border: var(--glass-border);
+}
+
+[data-theme="octo-glass"][data-mode="dark"] {
+  --octo-bg:     var(--canvas);
+  --octo-fg:     var(--text-strong);
+  --octo-accent: var(--accent);
+  --octo-border: var(--hairline);
+  --octo-backdrop:
+    radial-gradient(60% 80% at 18% 12%, oklch(0.45 0.16 250 / 0.55), transparent 60%),
+    radial-gradient(55% 70% at 88% 22%, oklch(0.50 0.15 300 / 0.45), transparent 62%),
+    radial-gradient(70% 90% at 72% 96%, oklch(0.55 0.14 200 / 0.40), transparent 60%);
+}
+
+[data-theme="octo-glass"][data-mode="light"] {
+  --octo-bg:     oklch(0.95 0.012 250);
+  --octo-fg:     oklch(0.22 0.02 260);
+  --octo-accent: var(--cyan-700);
+  --octo-panel-bg:     oklch(1 0 0 / 0.55);
+  --octo-panel-border: 1px solid oklch(0.2 0 0 / 0.08);
+  --octo-border:       oklch(0.2 0 0 / 0.1);
+  --octo-backdrop:
+    radial-gradient(60% 80% at 18% 12%, oklch(0.80 0.10 250 / 0.45), transparent 60%),
+    radial-gradient(55% 70% at 88% 22%, oklch(0.82 0.09 300 / 0.40), transparent 62%);
+}

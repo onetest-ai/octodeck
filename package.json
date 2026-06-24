@@ -1,0 +1,34 @@
+{
+  "name": "octodeck",
+  "version": "0.1.0",
+  "description": "A TypeScript + Vite framework for building presentation-like webpages from TS components.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "new:deck": "node scripts/new-deck.mjs",
+    "skill:assets": "node scripts/build-skill-assets.mjs",
+    "skill:validate": "node scripts/validate-skill.mjs",
+    "extract-theme": "node --experimental-strip-types scripts/extract-theme.ts",
+    "build:single": "vite build --config vite.singlefile.config.ts && node scripts/inline-single.mjs",
+    "pptx:themes": "node --experimental-strip-types scripts/pptx/resolve-themes.ts",
+    "pptx:bake": "node --experimental-strip-types scripts/pptx/bake-backdrops.ts",
+    "build:pptx": "node --experimental-strip-types scripts/pptx/build.ts",
+    "build:pdf": "node --experimental-strip-types scripts/export-pdf.ts"
+  },
+  "keywords": [
+    "presentation",
+    "slides",
+    "deck",
+    "vite",
+    "typescript"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "playwright": "^1.49.0",
+    "typescript": "^5.6.0",
+    "vite": "^6.0.0",
+    "vite-plugin-singlefile": "^2.3.3"
+  }
+}

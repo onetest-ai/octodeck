@@ -1,0 +1,43 @@
+/* ============================================================
+   OCTO · MOTION TOKENS
+   Liquid Glass moves like gel — springy, fluid, never linear.
+   Quick response, soft settle. Honor reduced-motion in apps.
+   ============================================================ */
+
+:root {
+  /* Durations */
+  --dur-instant: 80ms;  /* @kind other */
+  --dur-fast:    140ms; /* @kind other */
+  --dur-base:    220ms; /* @kind other */
+  --dur-slow:    360ms; /* @kind other */
+  --dur-slower:  560ms; /* @kind other */
+
+  /* Easings */
+  --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);     /* @kind other */
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);     /* @kind other */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);  /* @kind other */
+  --ease-glass:  cubic-bezier(0.2, 0.9, 0.25, 1.05); /* @kind other */
+
+  /* Common transitions */
+  --t-control: transform var(--dur-fast) var(--ease-glass),
+               background var(--dur-base) var(--ease-out),
+               box-shadow var(--dur-base) var(--ease-out),
+               border-color var(--dur-base) var(--ease-out); /* @kind other */
+  --t-glass: backdrop-filter var(--dur-slow) var(--ease-out),
+             background var(--dur-slow) var(--ease-out); /* @kind other */
+}
+
+/* Accessibility: honor the user's reduced-motion preference. Continuous
+   animations settle to their base/idle frame; transitions collapse to instant.
+   The voice visualizers (orb, bars) stop animating; the WebGL AuraRing
+   additionally renders a static frame (handled in JS, Task 2). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

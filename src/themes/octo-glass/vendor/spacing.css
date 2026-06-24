@@ -1,0 +1,40 @@
+/* ============================================================
+   OCTO · SPACING & LAYOUT TOKENS
+   4px base grid. Generous radii live in glass.css.
+   ============================================================ */
+
+:root {
+  --space-0:  0;
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-7:  32px;
+  --space-8:  40px;
+  --space-9:  48px;
+  --space-10: 64px;
+  --space-11: 80px;
+  --space-12: 96px;
+
+  /* Component insets */
+  --pad-control: 0 16px;
+  --gap-tight: 8px;
+  --gap: 12px;
+  --gap-loose: 20px;
+
+  /* Sizes for interactive targets (≥44px touch) */
+  --size-control-sm: 32px;
+  --size-control:    40px;
+  --size-control-lg: 48px;
+  --size-control-xl: 64px;
+
+  /* Layout */
+  --container-max: 1200px; /* @kind spacing */
+  --sidebar-w: 320px;      /* @kind spacing */
+  --z-base: 0;       /* @kind other */
+  --z-raised: 10;    /* @kind other */
+  --z-overlay: 100;  /* @kind other */
+  --z-toast: 1000;   /* @kind other */
+}
