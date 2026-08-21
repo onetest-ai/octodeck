@@ -49,13 +49,15 @@ describe('mountPreviewRoute', () => {
     const { ctx, webServer, disposers } = harness()
     mountPreviewRoute(ctx, { workspace, base: '/deck' })
     await vi.waitFor(() => expect(webServer.register).toHaveBeenCalledTimes(1))
-    expect(webServer.register.mock.calls[0][0]).toMatchObject({ kind: 'prefix', path: '/deck' })
-    expect(webServer.registerUpgrade.mock.calls[0][0]).toMatchObject({ path: '/deck' })
 
-    // The single async effect also starts a real Vite dev server (watchers
-    // included); release it rather than leaking it, per Finding 3.
+    // Register cleanup before any assertion below can throw: the single
+    // async effect also starts a real Vite dev server (watchers included),
+    // and a thrown `toMatchObject` must not skip releasing it.
     await vi.waitFor(() => expect(disposers.length).toBeGreaterThan(0))
     open = { close: async () => { for (const dispose of disposers) dispose() } }
+
+    expect(webServer.register.mock.calls[0][0]).toMatchObject({ kind: 'prefix', path: '/deck' })
+    expect(webServer.registerUpgrade.mock.calls[0][0]).toMatchObject({ path: '/deck' })
   })
 
   it('registers through a single async ctx.effect so disposal removes both routes and stops the server', async () => {
