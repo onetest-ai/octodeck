@@ -617,7 +617,7 @@ Create `packages/dsh-deck/src/octodeck/scaffold.ts`:
 
 ```ts
 import { mkdir, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import type { DeckSpec } from '../definition.ts'
 
 /** The seed slides module: valid on first render, and a template for the model. */
@@ -639,9 +639,15 @@ export const slides: Slide[] = [
  * @throws {Error} when the deck directory already exists.
  */
 export async function scaffoldDeck(spec: DeckSpec): Promise<readonly string[]> {
+  // The decks/ parent may not exist yet (the first deck in a workspace), so it
+  // is created permissively. The deck directory itself is created with
+  // `recursive: false` so the create IS the existence check: two concurrent
+  // calls cannot both believe they created it.
+  await mkdir(dirname(spec.directory), { recursive: true })
   try {
     await mkdir(spec.directory, { recursive: false })
   } catch (cause) {
+    if ((cause as NodeJS.ErrnoException).code !== 'EEXIST') throw cause
     throw new Error(`deck ${spec.name} already exists at ${spec.directory}`, { cause })
   }
   const files: Array<readonly [string, string]> = [
