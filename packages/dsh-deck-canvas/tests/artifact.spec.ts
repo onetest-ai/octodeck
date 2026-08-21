@@ -37,4 +37,33 @@ describe('client bundle artifact', () => {
   it('wraps the factory body in a CommonJS module scope', () => {
     expect(artifact()).toContain('var module = { exports: {} };')
   })
+
+  /**
+   * The canvas imports React for real (DeckCanvas.tsx/DeckToolview.tsx are
+   * JSX). tsdown.config.ts's `deps.neverBundle`/`alwaysBundle` is supposed to
+   * keep every baseline module-table entry — `react`, `react/jsx-runtime`
+   * here; `@deepseek-ai/dsh-client-ui-slots` and
+   * `@deepseek-ai/dsh-client-runtime/client` are type-only in this package's
+   * own source, so their imports are erased before bundling and never
+   * surface as a `require()` either way — external rather than inlined.
+   * `require("react")` in the built factory is exactly what a correctly
+   * externalized bundle looks like (see src/client/index.ts's `let react =
+   * require("react")`, emitted by the harness's own real
+   * `@deepseek-ai/dsh-client-ui-tool` artifact the same way); the prior
+   * round of this suite had no assertion that would fail if externalization
+   * silently stopped working, which is exactly how a full copy of React
+   * got inlined here undetected (tsdown pinned below the version whose
+   * `deps` option this config relies on — see the package's own history).
+   */
+  it('keeps baseline module-table imports external instead of inlining a copy', () => {
+    const source = artifact()
+    expect(source).toContain('require("react")')
+    expect(source).toContain('require("react/jsx-runtime")')
+    // A bundled copy of React ships its own internal module wrapper for
+    // `react/cjs/react.production.min.js` (or the dev build); its absence,
+    // together with the `require()` calls above, is what distinguishes an
+    // external dependency from an inlined one.
+    expect(source).not.toContain('react.production.min.js')
+    expect(source).not.toContain('react.development.js')
+  })
 })

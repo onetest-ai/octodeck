@@ -1,8 +1,9 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { defineTool } from '@deepseek-ai/dsh-tools'
+import { defineTool, type ToolDefinition } from '@deepseek-ai/dsh-tools'
 import { THEMES } from './definition.ts'
 import { mountPreviewRoute, type PreviewHostContext } from './host/preview-route.ts'
 import { createDeck, viewDeck } from './tools/deck-create.ts'
+import type { PreviewOptions } from './tools/deck-create.ts'
 
 /** Deployment-varying choices, changeable from cordis.yml. */
 export interface Config {
@@ -91,7 +92,20 @@ export function apply(ctx: Context & PreviewHostContext, config: Config): void {
     execute: async (args, exec) => createDeck(args, options, exec),
   }))
 
-  ctx.tools.register(defineTool({
+  ctx.tools.register(deckViewTool(options))
+}
+
+/**
+ * The `deck_view` tool definition, extracted from {@link apply} so its
+ * `output.presentationMeta` projection — the one piece of behavior this
+ * definition adds beyond a plain typed tool — is directly testable without
+ * constructing a cordis context or a full `ToolRegistry` dispatch.
+ * @param options - workspace root and mounted preview base, forwarded to
+ * `viewDeck`.
+ * @returns the tool definition `ctx.tools.register` mounts.
+ */
+export function deckViewTool(options: PreviewOptions): ToolDefinition {
+  return defineTool({
     name: 'deck_view',
     description: 'Open a deck on the preview canvas.',
     parameters: { name: { type: 'string', required: true, description: 'Deck name' } },
@@ -115,5 +129,5 @@ export function apply(ctx: Context & PreviewHostContext, config: Config): void {
       presentationMeta: (_args, value) => value,
     },
     execute: async (args, exec) => viewDeck(args, options, exec),
-  }))
+  })
 }

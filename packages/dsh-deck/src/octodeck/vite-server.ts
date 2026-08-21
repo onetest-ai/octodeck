@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events'
+import { realpath } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { join } from 'node:path'
 import type { Duplex } from 'node:stream'
@@ -33,6 +34,17 @@ export async function startPreviewServer(
   options: { readonly workspace: string, readonly base: string },
 ): Promise<PreviewServer> {
   const upgrades = new EventEmitter()
+  // Vite's dev-server `fs.allow` containment check compares a request's
+  // resolved absolute path against this list byte-for-byte; it does not
+  // resolve symlinks on either side. `options.workspace` is a caller-supplied
+  // path that may still contain one (a macOS `mkdtemp(os.tmpdir())` result is
+  // `/var/folders/...`, a symlink to `/private/var/folders/...` — every fs
+  // operation on the actual deck files below it resolves through that
+  // symlink, so an unresolved allow entry never matches and every `/@dsh-deck/`
+  // request 404s, independent of the alias itself resolving correctly).
+  // Resolving once here keeps the alias replacement and the allow entry
+  // consistent with what the filesystem actually reports.
+  const workspace = await realpath(options.workspace)
   const vite: ViteDevServer = await createServer({
     root: RUNTIME_ROOT,
     base: `${options.base}/`,
@@ -40,12 +52,12 @@ export async function startPreviewServer(
     server: {
       middlewareMode: true,
       hmr: { server: upgrades as unknown as import('node:http').Server },
-      fs: { allow: [RUNTIME_ROOT, options.workspace] },
+      fs: { allow: [RUNTIME_ROOT, workspace] },
     },
     resolve: {
       alias: [
         // Workspace decks, reached from the host page and from a deck's own imports.
-        { find: /^\/@dsh-deck\//, replacement: `${options.workspace}/decks/` },
+        { find: /^\/@dsh-deck\//, replacement: `${workspace}/decks/` },
         // `octodeck/framework` and `octodeck/themes` resolve to the framework
         // source in this repository. The root package publishes no such
         // subpaths, so the alias — not an exports map — is what makes the

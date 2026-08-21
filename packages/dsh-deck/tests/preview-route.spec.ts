@@ -116,6 +116,42 @@ describe('mountPreviewRoute', () => {
     expect(asset.statusCode).toBe(200)
     expect(asset.headers['content-type']).toContain('javascript')
     expect(asset.body).toContain('deck(')
+
+    // entry.ts requests its slides/meta prefixed with
+    // `import.meta.env.BASE_URL` rather than a bare `/@dsh-deck/...` path
+    // (see runtime/entry.ts's own comment): Vite's dev server injects a live
+    // `import.meta.env` object (BASE_URL: '/deck/', confirmed below) rather
+    // than inlining a literal at transform time, so the served module keeps
+    // the property access and the base-prefixed template, never the bare
+    // path template the pre-fix version served.
+    expect(asset.body).toContain('"BASE_URL": "/deck/"')
+    expect(asset.body).toContain('import.meta.env.BASE_URL')
+    expect(asset.body).toContain('`${base}@dsh-deck/${name}/slides.ts`')
+    expect(asset.body).toContain('`${base}@dsh-deck/${name}/deck.json?import`')
+    expect(asset.body).not.toContain('`/@dsh-deck/${name}/slides.ts`')
+    expect(asset.body).not.toContain('`/@dsh-deck/${name}/deck.json`')
+
+    // The requests entry.ts actually issues at runtime: both must resolve
+    // through the mounted route (the harness webserver only forwards
+    // `/deck/*` to this middleware), not 404 the way a bare `/@dsh-deck/...`
+    // path would (this is the regression this test now guards against).
+    const slidesModule = await rawRequest(port, '/deck/@dsh-deck/launch/slides.ts')
+    expect(slidesModule.statusCode).toBe(200)
+    expect(slidesModule.headers['content-type']).toContain('javascript')
+
+    // `deck.json` needs the `?import` marker: Vite's transform middleware
+    // recognizes `.ts`/`.js` by extension alone, but a non-JS-extension file
+    // requested outside Vite's own static import analysis (this dynamic
+    // import is `@vite-ignore`) falls through to static file serving without
+    // it — which does not know this package's `/@dsh-deck/` alias and 404s,
+    // confirmed by the assertion right below.
+    const deckJsonBare = await rawRequest(port, '/deck/@dsh-deck/launch/deck.json')
+    expect(deckJsonBare.statusCode).toBe(404)
+
+    const deckJson = await rawRequest(port, '/deck/@dsh-deck/launch/deck.json?import')
+    expect(deckJson.statusCode).toBe(200)
+    expect(deckJson.headers['content-type']).toContain('javascript')
+    expect(deckJson.body).toContain('midnight')
   })
 
   it('sequences disposal after an in-flight start: no server survives, no unhandled rejection', async () => {
@@ -180,12 +216,16 @@ describe('mountPreviewRoute', () => {
     // leniently — a nonexistent, unwritable, oversized, or non-directory
     // workspace path, and even a non-absolute `base`, all still resolve
     // successfully (verified by hand; none of them reject
-    // `startPreviewServer`). The one deterministic, non-mocked failure
-    // found is a `workspace` value whose string coercion throws:
-    // `vite-server.ts` interpolates `options.workspace` into the alias
-    // replacement template before `createServer` is ever called, so this is
-    // a real synchronous throw inside the real function, not a stubbed
-    // module.
+    // `startPreviewServer`). The one deterministic, non-mocked failure found
+    // is a `workspace` value `node:fs/promises`'s `realpath` rejects:
+    // `vite-server.ts` resolves `options.workspace` through `realpath` before
+    // `createServer` is ever called (so the alias replacement and the
+    // `fs.allow` entry agree on a symlink-resolved path — see that file's own
+    // comment), which is a real rejection inside the real function, not a
+    // stubbed module. This replaces a prior version of this test that relied
+    // on a `workspace` value whose string coercion threw: `realpath` now
+    // validates its argument's type before ever reaching a `.toString()`
+    // call, so that failure mode no longer reaches this function first.
     //
     // This test's assertions changed from the prior round: that version
     // asserted a process-wide `uncaughtException`, which was how the
@@ -196,7 +236,7 @@ describe('mountPreviewRoute', () => {
     // rejection actually reaches the effect body cordis awaits, and no
     // route was registered before that rejection. See the fix-round-2
     // report for the ruling this is pending.
-    const workspace = { toString() { throw new Error('workspace-tostring-boom') } } as unknown as string
+    const workspace = { notAPath: true } as unknown as string
     const webServer = {
       register: vi.fn(() => () => {}),
       registerUpgrade: vi.fn(() => () => {}),
@@ -206,7 +246,7 @@ describe('mountPreviewRoute', () => {
 
     mountPreviewRoute(ctx, { workspace, base: '/deck' })
 
-    await expect(bodyPromise).rejects.toThrow('workspace-tostring-boom')
+    await expect(bodyPromise).rejects.toThrow(/path.*argument/i)
     expect(webServer.register).not.toHaveBeenCalled()
     expect(webServer.registerUpgrade).not.toHaveBeenCalled()
   })
