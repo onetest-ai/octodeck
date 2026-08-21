@@ -26,11 +26,28 @@ cpSync('scripts', `${DEST}/scripts`, {
   filter: (src) => !REPO_ONLY.some((f) => src.endsWith(f)) && !/pptx[\\/]backdrops/.test(src),
 })
 
-// drop repo-only scripts from the consumer's package.json
+// drop repo-only fields from the consumer's package.json: the scaffold is a
+// standalone project, not a member of this repo's npm workspace.
 const pkgPath = `${DEST}/package.json`
 const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))
 for (const s of ['skill:assets', 'skill:validate']) delete pkg.scripts[s]
+delete pkg.workspaces
 writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n')
+
+// drop this repo's workspace-member entries from the consumer's package-lock.json:
+// `packages/<name>` entries and the `node_modules/<name>` symlink entries that
+// resolve into them describe this repo's own layout, not the scaffold's.
+const lockPath = `${DEST}/package-lock.json`
+if (existsSync(lockPath)) {
+  const lock = JSON.parse(readFileSync(lockPath, 'utf8'))
+  if (lock.packages?.['']) delete lock.packages[''].workspaces
+  for (const [key, entry] of Object.entries(lock.packages ?? {})) {
+    const isWorkspaceMember = key.startsWith('packages/')
+    const isWorkspaceLink = entry.link === true && typeof entry.resolved === 'string' && entry.resolved.startsWith('packages/')
+    if (isWorkspaceMember || isWorkspaceLink) delete lock.packages[key]
+  }
+  writeFileSync(lockPath, JSON.stringify(lock, null, 2) + '\n')
+}
 
 // a minimal .gitignore + README for the consumer's copied project
 writeFileSync(`${DEST}/.gitignore`, ['node_modules/', 'dist/', 'dist-pptx/', 'dist-pdf/', 'dist-single/', '.vite/', '*.log', '.DS_Store', ''].join('\n'))
