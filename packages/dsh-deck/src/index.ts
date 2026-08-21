@@ -107,6 +107,12 @@ export function apply(ctx: Context & PreviewHostContext, config: Config): void {
         },
       },
       render: (_args, value) => [{ type: 'text', text: `Deck ${value.deckId}: ${value.slideCount} slide(s)` }],
+      // Threads the canonical DeckView value onto the tool/result event's
+      // `meta`, verbatim and replay-stable, so the deck-canvas keyed
+      // `tool.call.toolview` registration (@onetest/dsh-deck-canvas) can
+      // render from it: neither slot exposes a tool's raw canonical value
+      // otherwise, only the model-facing `content` and this projected `meta`.
+      presentationMeta: (_args, value) => value,
     },
     execute: async (args, exec) => viewDeck(args, options, exec),
   }))
