@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -37,14 +37,24 @@ describe('scaffoldDeck', () => {
     await expect(scaffoldDeck(spec)).rejects.toThrow(/exists/)
   })
 
-  it('fails loudly when the parent path is a file, not a directory', async () => {
-    const workspace = await mkdtemp(join(tmpdir(), 'dsh-deck-'))
-    const spec = resolveDeck({ name: 'launch' }, workspace)
-    // Create a file at the decks parent path to block directory creation
-    const decksPath = join(workspace, 'decks')
-    await writeFile(decksPath, 'blocking file')
-    // Attempting to scaffold should fail with the system error (EEXIST from mkdir),
-    // not the wrapped "deck already exists" message (which only wraps EEXIST from deck dir mkdir)
-    await expect(scaffoldDeck(spec)).rejects.toThrow(/EEXIST.*mkdir/)
-  })
+  it.skipIf(process.getuid?.() === 0)(
+    'rethrows a non-EEXIST failure instead of calling it a name collision',
+    async () => {
+      const workspace = await mkdtemp(join(tmpdir(), 'dsh-deck-'))
+      const spec = resolveDeck({ name: 'launch' }, workspace)
+      const decksPath = join(workspace, 'decks')
+      // Create the parent directory, then make it read-only to force EACCES
+      // on the inner mkdir(spec.directory, { recursive: false })
+      await mkdir(decksPath)
+      try {
+        await chmod(decksPath, 0o555)
+        // Attempting to scaffold should fail with EACCES from the deck directory mkdir,
+        // not the wrapped "deck already exists" message (which only wraps EEXIST)
+        await expect(scaffoldDeck(spec)).rejects.toMatchObject({ code: 'EACCES' })
+      } finally {
+        // Restore permissions so the temp directory can be cleaned up
+        await chmod(decksPath, 0o755)
+      }
+    }
+  )
 })
