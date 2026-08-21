@@ -1,6 +1,7 @@
 {
   "name": "octodeck",
   "version": "0.1.0",
+  "workspaces": ["packages/*"],
   "description": "A TypeScript + Vite framework for building presentation-like webpages from TS components.",
   "type": "module",
   "scripts": {

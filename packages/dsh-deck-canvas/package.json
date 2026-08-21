@@ -1,0 +1,26 @@
+{
+  "name": "@onetest/dsh-deck-canvas",
+  "version": "0.0.0",
+  "description": "Deck preview canvas for DeepSeek Harness: tool card and details-column panel",
+  "type": "module",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": { "types": "./lib/types/index.d.ts", "default": "./lib/index.js" },
+    "./client": { "types": "./lib/types/client/index.d.ts", "default": "./lib/client.js" },
+    "./package.json": "./package.json"
+  },
+  "dsh": { "client": { "platform": "web" } },
+  "scripts": { "bundle": "tsdown", "test": "vitest run" },
+  "files": ["lib/index.js", "lib/client.js", "lib/types/**/*.d.ts"],
+  "peerDependencies": { "@deepseek-ai/cordis": "*" },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@types/react": "~18.3.1",
+    "react": "^18.2.0",
+    "tsdown": "^0.9.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
