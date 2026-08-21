@@ -26,6 +26,7 @@ export async function scaffoldDeck(spec: DeckSpec): Promise<readonly string[]> {
   try {
     await mkdir(spec.directory, { recursive: false })
   } catch (cause) {
+    if ((cause as NodeJS.ErrnoException).code !== 'EEXIST') throw cause
     throw new Error(`deck ${spec.name} already exists at ${spec.directory}`, { cause })
   }
   const files: Array<readonly [string, string]> = [

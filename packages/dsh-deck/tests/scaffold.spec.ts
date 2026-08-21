@@ -1,4 +1,4 @@
-import { mkdtemp, readFile } from 'node:fs/promises'
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -35,5 +35,16 @@ describe('scaffoldDeck', () => {
   it('refuses to overwrite an existing deck', async () => {
     const { spec } = await scaffoldInTemp()
     await expect(scaffoldDeck(spec)).rejects.toThrow(/exists/)
+  })
+
+  it('fails loudly when the parent path is a file, not a directory', async () => {
+    const workspace = await mkdtemp(join(tmpdir(), 'dsh-deck-'))
+    const spec = resolveDeck({ name: 'launch' }, workspace)
+    // Create a file at the decks parent path to block directory creation
+    const decksPath = join(workspace, 'decks')
+    await writeFile(decksPath, 'blocking file')
+    // Attempting to scaffold should fail with the system error (EEXIST from mkdir),
+    // not the wrapped "deck already exists" message (which only wraps EEXIST from deck dir mkdir)
+    await expect(scaffoldDeck(spec)).rejects.toThrow(/EEXIST.*mkdir/)
   })
 })
