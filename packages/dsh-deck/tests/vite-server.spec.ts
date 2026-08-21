@@ -1,8 +1,8 @@
 import { createServer as createHttpServer, request as httpRequest } from 'node:http'
-import { mkdtemp } from 'node:fs/promises'
+import { mkdtemp, realpath, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resolveDeck } from '../src/definition.ts'
 import { scaffoldDeck } from '../src/octodeck/scaffold.ts'
 import { startPreviewServer } from '../src/octodeck/vite-server.ts'
@@ -127,6 +127,89 @@ describe('startPreviewServer', () => {
       expect(body).toContain('src/framework/index.ts')
     } finally {
       await new Promise<void>(resolve => http.close(() => resolve()))
+    }
+  })
+
+  describe('fs.allow narrowing (Finding 4)', () => {
+    it('refuses a workspace file outside decks/ over @fs', async () => {
+      const workspace = await mkdtemp(join(tmpdir(), 'dsh-deck-'))
+      await scaffoldDeck(resolveDeck({ name: 'launch' }, workspace))
+      // A file that lives in the session workspace but outside decks/ — the
+      // reviewer verified live that the pre-fix `fs.allow: [RUNTIME_ROOT,
+      // workspace]` served exactly this kind of file over `/deck/@fs/...`,
+      // a remote read of the user's project on a non-loopback deployment.
+      const realWorkspace = await realpath(workspace)
+      const secretPath = join(realWorkspace, 'secret.txt')
+      await writeFile(secretPath, 'do not serve me over the deck route')
+
+      const server = await startPreviewServer({ workspace, base: '/deck' })
+      open = server
+      const http = createHttpServer(server.middleware)
+      await new Promise<void>(resolve => http.listen(0, resolve))
+      const { port } = http.address() as { port: number }
+
+      try {
+        const response = await fetch(`http://127.0.0.1:${port}/deck/@fs${secretPath}`)
+        expect(response.status).not.toBe(200)
+        const body = await response.text()
+        expect(body).not.toContain('do not serve me')
+      } finally {
+        await new Promise<void>(resolve => http.close(() => resolve()))
+      }
+    })
+
+    it('still serves a scaffolded deck file under decks/', async () => {
+      const workspace = await mkdtemp(join(tmpdir(), 'dsh-deck-'))
+      await scaffoldDeck(resolveDeck({ name: 'launch' }, workspace))
+      const realWorkspace = await realpath(workspace)
+      const slidesPath = join(realWorkspace, 'decks', 'launch', 'slides.ts')
+
+      const server = await startPreviewServer({ workspace, base: '/deck' })
+      open = server
+      const http = createHttpServer(server.middleware)
+      await new Promise<void>(resolve => http.listen(0, resolve))
+      const { port } = http.address() as { port: number }
+
+      try {
+        const response = await fetch(`http://127.0.0.1:${port}/deck/@fs${slidesPath}`)
+        expect(response.status).toBe(200)
+      } finally {
+        await new Promise<void>(resolve => http.close(() => resolve()))
+      }
+    })
+  })
+})
+
+describe('framework source presence check (Finding 3b)', () => {
+  it('fails loudly, naming the resolved path, when the Octodeck framework source is missing', async () => {
+    // `octodeck/framework` resolves to a fixed monorepo-relative depth into
+    // this repository's own src/framework — a path an installed tarball of
+    // this package can never satisfy (the framework source is neither in
+    // `files` nor a declared dependency). Simulating that absence by mocking
+    // `stat` (the only call this module makes to it) rather than deleting
+    // real framework source from this checkout.
+    vi.resetModules()
+    vi.doMock('node:fs/promises', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('node:fs/promises')>()
+      return {
+        ...actual,
+        stat: async (path: unknown) => {
+          if (typeof path === 'string' && path.includes(`${join('src', 'framework', 'index.ts')}`)) {
+            throw Object.assign(new Error(`ENOENT: no such file or directory, stat '${path}'`), { code: 'ENOENT' })
+          }
+          return actual.stat(path as never)
+        },
+      }
+    })
+    try {
+      const { startPreviewServer: startWithMissingFramework } = await import('../src/octodeck/vite-server.ts')
+      const workspace = await mkdtemp(join(tmpdir(), 'dsh-deck-'))
+      await expect(startWithMissingFramework({ workspace, base: '/deck' })).rejects.toThrow(
+        /Octodeck framework source not found at .*src[/\\]framework[/\\]index\.ts.*only runnable from within the octodeck repository/s,
+      )
+    } finally {
+      vi.doUnmock('node:fs/promises')
+      vi.resetModules()
     }
   })
 })
