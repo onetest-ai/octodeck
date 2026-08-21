@@ -34,18 +34,98 @@ for (const s of ['skill:assets', 'skill:validate']) delete pkg.scripts[s]
 delete pkg.workspaces
 writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n')
 
-// drop this repo's workspace-member entries from the consumer's package-lock.json:
-// `packages/<name>` entries and the `node_modules/<name>` symlink entries that
-// resolve into them describe this repo's own layout, not the scaffold's.
+/**
+ * Ancestor `packages` keys to probe for a dependency of `fromKey`, nearest
+ * first — the same walk-up-the-tree order Node's own require resolution
+ * uses: a package's own nested `node_modules` first, then each enclosing
+ * `node_modules` up to the project root (`''`).
+ * @param fromKey - the dependent's own lockfile `packages` key (`''` for root).
+ * @returns ancestor keys from `fromKey` up to `''`, inclusive.
+ */
+function ancestorKeys(fromKey) {
+  const keys = []
+  let cur = fromKey
+  while (true) {
+    keys.push(cur)
+    if (cur === '') break
+    const cut = cur.lastIndexOf('/node_modules/')
+    cur = cut === -1 ? '' : cur.slice(0, cut)
+  }
+  return keys
+}
+
+/**
+ * Resolve a dependency name from a lockfile entry the way Node would:
+ * nearest nested `node_modules` first, falling back through ancestors to the
+ * hoisted root. Returns `undefined` for an unmet optional/peer dependency
+ * (e.g. a platform-specific optional not installed on this machine) — the
+ * caller drops it rather than treating it as an error.
+ * @param packages - the lockfile's `packages` map.
+ * @param fromKey - the dependent's own `packages` key.
+ * @param name - the dependency's package name.
+ * @returns the resolved `packages` key, or `undefined` if none exists.
+ */
+function resolveDependency(packages, fromKey, name) {
+  for (const ancestor of ancestorKeys(fromKey)) {
+    const candidate = ancestor === '' ? `node_modules/${name}` : `${ancestor}/node_modules/${name}`
+    if (packages[candidate]) return candidate
+  }
+  return undefined
+}
+
+/**
+ * Prune the copied package-lock.json to the closure reachable from the
+ * copied package.json's own dependencies, computed offline by walking the
+ * lockfile's own dependency graph — never by shelling out to `npm install
+ * --package-lock-only`, which needs registry access and would make this
+ * generator (and CI) network-dependent. A repo workspace member's own
+ * devDependencies (tsdown, vitest, @deepseek-ai/cordis, …) get hoisted into
+ * this repo's shared root `node_modules` and recorded in the lockfile, but
+ * are structurally unreachable from the scaffold's own package.json — this
+ * removes that dead weight along with the workspace member itself. Erring
+ * toward keeping an entry (an unresolvable optional/peer dependency, or a
+ * resolution quirk this walk doesn't model) is acceptable; dropping a
+ * reachable entry is not.
+ * @param lock - the parsed package-lock.json.
+ * @param scaffoldPkg - the already-stripped copy of package.json (no
+ * `workspaces`) whose own dependency sets seed the reachable closure.
+ */
+function pruneToReachableClosure(lock, scaffoldPkg) {
+  const packages = lock.packages ?? {}
+  if (packages['']) delete packages[''].workspaces
+  const roots = {
+    ...scaffoldPkg.dependencies,
+    ...scaffoldPkg.devDependencies,
+    ...scaffoldPkg.optionalDependencies,
+  }
+  const reachable = new Set()
+  const queue = []
+  for (const name of Object.keys(roots)) {
+    const key = resolveDependency(packages, '', name)
+    if (key !== undefined) queue.push(key)
+  }
+  while (queue.length > 0) {
+    const key = queue.shift()
+    if (reachable.has(key)) continue
+    reachable.add(key)
+    const entry = packages[key]
+    const deps = { ...entry.dependencies, ...entry.optionalDependencies, ...entry.peerDependencies }
+    for (const name of Object.keys(deps)) {
+      const depKey = resolveDependency(packages, key, name)
+      if (depKey !== undefined && !reachable.has(depKey)) queue.push(depKey)
+    }
+  }
+  for (const key of Object.keys(packages)) {
+    if (key !== '' && !reachable.has(key)) delete packages[key]
+  }
+}
+
+// prune the consumer's package-lock.json to what its (already
+// workspace-stripped) package.json can actually reach.
 const lockPath = `${DEST}/package-lock.json`
 if (existsSync(lockPath)) {
   const lock = JSON.parse(readFileSync(lockPath, 'utf8'))
-  if (lock.packages?.['']) delete lock.packages[''].workspaces
-  for (const [key, entry] of Object.entries(lock.packages ?? {})) {
-    const isWorkspaceMember = key.startsWith('packages/')
-    const isWorkspaceLink = entry.link === true && typeof entry.resolved === 'string' && entry.resolved.startsWith('packages/')
-    if (isWorkspaceMember || isWorkspaceLink) delete lock.packages[key]
-  }
+  pruneToReachableClosure(lock, pkg)
   writeFileSync(lockPath, JSON.stringify(lock, null, 2) + '\n')
 }
 

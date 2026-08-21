@@ -6,6 +6,7 @@ dist/
 dist-pptx/
 dist-pdf/
 dist-single/
+packages/*/lib/
 .vite/
 
 # regenerable caches (baked via `npm run pptx:bake`)
