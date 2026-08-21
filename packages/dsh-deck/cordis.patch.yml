@@ -1,0 +1,9 @@
+# The @onetest/dsh-deck bundle patch: the deck capability over the web surface.
+# Host rows mount the seam and its preview route; the canvas row joins the
+# browser roster the modules node half scans into the boot payload.
+- insert:
+    - id: deck
+      name: '@onetest/dsh-deck'
+
+    - id: deck-canvas
+      name: '@onetest/dsh-deck-canvas'
