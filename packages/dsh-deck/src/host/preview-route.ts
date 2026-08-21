@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Duplex } from 'node:stream'
-import { startPreviewServer } from '../octodeck/vite-server.ts'
+import { hmrUpgradePath, startPreviewServer } from '../octodeck/vite-server.ts'
 
 /** The `webServer` surface this package consumes, duck-typed against the harness contract. */
 interface PreviewHostWebServer {
@@ -37,6 +37,8 @@ export interface PreviewHostContext {
   effect(fn: () => Promise<() => void>): void
   /** The harness's browser HTTP carrier: named route and upgrade-route registries. */
   webServer: PreviewHostWebServer
+  /** cordis's structured logger, used to report a disposal-time failure that must not become an unhandled rejection. */
+  logger: { warn(format: unknown, ...param: unknown[]): void }
 }
 
 /**
@@ -59,6 +61,14 @@ function isDeckPageRequest(url: string, base: string): boolean {
  * Mount the deck preview on the harness's own web server: one prefix route for
  * HTTP and one upgrade route for hot module replacement, registered from a
  * single async `ctx.effect` alongside starting the preview server itself, so
+ *
+ * The upgrade route is registered at {@link hmrUpgradePath}`(options.base)`,
+ * not at `options.base` itself: the harness dispatches upgrades by exact
+ * pathname, and Vite's injected HMR client always requests
+ * `path.posix.join(base-with-trailing-slash, hmr.path)` — `${base}/hmr`, not
+ * bare `base`. Registering at `base` alone means the socket the browser
+ * actually opens never matches any route, and the harness destroys it.
+ *
  * cordis owns the whole lifecycle — start, route registration, and teardown
  * — as one unit. Disposing the plugin removes both routes and stops the
  * server; a disposal that lands while the server is still starting is
@@ -106,13 +116,21 @@ export function mountPreviewRoute(
         },
       }),
       ctx.webServer.registerUpgrade({
-        path: options.base,
+        path: hmrUpgradePath(options.base),
         handler: (req, socket, head) => { started.handleUpgrade(req, socket, head) },
       }),
     ]
     return () => {
       for (const dispose of routes) dispose()
-      void started.close()
+      // A rejecting `close()` here is not the effect body's rejection cordis
+      // reports through the owning fiber (this runs later, from the
+      // disposer) — Node's default `--unhandled-rejections=throw` would
+      // otherwise take down the whole harness process for a plugin
+      // disposal. Report it and move on: nothing downstream awaits this
+      // teardown succeeding.
+      started.close().catch((error: unknown) => {
+        ctx.logger.warn('deck preview server failed to close cleanly: %s', error)
+      })
     }
   })
 }

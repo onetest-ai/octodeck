@@ -24,8 +24,10 @@ function harness() {
     register: vi.fn(() => () => {}),
     registerUpgrade: vi.fn(() => () => {}),
   }
+  const logger = { warn: vi.fn() }
   const ctx: PreviewHostContext = {
     webServer,
+    logger,
     effect: (fn) => {
       void fn().then(
         (dispose) => { disposers.push(dispose) },
@@ -37,7 +39,7 @@ function harness() {
       )
     },
   }
-  return { ctx, webServer, disposers }
+  return { ctx, webServer, disposers, logger }
 }
 
 let open: { close(): Promise<void> } | undefined
@@ -57,19 +59,21 @@ describe('mountPreviewRoute', () => {
     open = { close: async () => { for (const dispose of disposers) dispose() } }
 
     expect(webServer.register.mock.calls[0][0]).toMatchObject({ kind: 'prefix', path: '/deck' })
-    expect(webServer.registerUpgrade.mock.calls[0][0]).toMatchObject({ path: '/deck' })
+    // Finding 1: the upgrade route must sit at the path Vite's HMR client
+    // actually requests (`${base}/hmr`), not at the bare base — see
+    // hmrUpgradePath's doc in src/octodeck/vite-server.ts.
+    expect(webServer.registerUpgrade.mock.calls[0][0]).toMatchObject({ path: '/deck/hmr' })
   })
 
-  it('registers through a single async ctx.effect so disposal removes both routes and stops the server', async () => {
-    const workspace = await mkdtemp(join(tmpdir(), 'dsh-deck-'))
-    const { ctx, disposers } = harness()
-    mountPreviewRoute(ctx, { workspace, base: '/deck' })
-    await vi.waitFor(() => expect(disposers.length).toBeGreaterThan(0))
-
-    // Release the real Vite dev server this test started (Finding 3), same
-    // pattern as above.
-    open = { close: async () => { for (const dispose of disposers) dispose() } }
-  })
+  // Finding 6: a test titled "registers through a single async ctx.effect so
+  // disposal removes both routes and stops the server" used to live here,
+  // asserting only `disposers.length > 0` — never disposing, never checking
+  // a route was removed, never checking the server stopped. That behavior
+  // is genuinely covered below, by "sequences disposal after an in-flight
+  // start": it disposes for real, then proves the server actually stopped
+  // by requesting `/deck/entry.ts` after `dispose()` and asserting it no
+  // longer serves the live module. Deleted rather than given a body that
+  // would just duplicate that test.
 
   it('serves a real deck page and delegates asset requests to the preview server', async () => {
     const workspace = await mkdtemp(join(tmpdir(), 'dsh-deck-'))
@@ -83,6 +87,7 @@ describe('mountPreviewRoute', () => {
     }
     const ctx: PreviewHostContext = {
       webServer,
+      logger: { warn: vi.fn() },
       effect: (fn) => { void fn().then((dispose) => { disposers.push(dispose) }) },
     }
 
@@ -174,7 +179,7 @@ describe('mountPreviewRoute', () => {
       registerUpgrade: vi.fn(() => () => {}),
     }
     let bodyPromise: Promise<() => void> | undefined
-    const ctx: PreviewHostContext = { webServer, effect: (fn) => { bodyPromise = fn() } }
+    const ctx: PreviewHostContext = { webServer, logger: { warn: vi.fn() }, effect: (fn) => { bodyPromise = fn() } }
 
     const unhandledRejection = vi.fn()
     process.once('unhandledRejection', unhandledRejection)
@@ -242,7 +247,7 @@ describe('mountPreviewRoute', () => {
       registerUpgrade: vi.fn(() => () => {}),
     }
     let bodyPromise: Promise<() => void> | undefined
-    const ctx: PreviewHostContext = { webServer, effect: (fn) => { bodyPromise = fn() } }
+    const ctx: PreviewHostContext = { webServer, logger: { warn: vi.fn() }, effect: (fn) => { bodyPromise = fn() } }
 
     mountPreviewRoute(ctx, { workspace, base: '/deck' })
 
