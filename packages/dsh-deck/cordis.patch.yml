@@ -4,6 +4,8 @@
 - insert:
     - id: deck
       name: '@onetest/dsh-deck'
+      config:
+        base: /deck
 
     - id: deck-canvas
       name: '@onetest/dsh-deck-canvas'
