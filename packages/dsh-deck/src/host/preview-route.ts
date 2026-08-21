@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Duplex } from 'node:stream'
-import { startPreviewServer, type PreviewServer } from '../octodeck/vite-server.ts'
+import { startPreviewServer } from '../octodeck/vite-server.ts'
 
 /** The `webServer` surface this package consumes, duck-typed against the harness contract. */
 interface PreviewHostWebServer {
@@ -23,8 +23,18 @@ interface PreviewHostWebServer {
  * interface structurally at the call site, with no declaration merge.
  */
 export interface PreviewHostContext {
-  /** Register a disposable side effect; the returned disposer undoes it. */
-  effect(fn: () => () => void): void
+  /**
+   * Register a disposable side effect. cordis awaits an async body before
+   * treating the effect as settled: a disposal that arrives while the body
+   * is still in flight waits for it to finish, then runs the disposer it
+   * returned — so a resource's setup and teardown live in one effect with
+   * no separate promise bookkeeping for the race between them. A rejection
+   * is reported through the owning fiber rather than thrown into the
+   * process (`vendor/cordis/src/fiber.ts`'s `effect()`: the settled `task`
+   * gets one `.catch` that disposes whatever partial cleanup exists and
+   * logs the error through `ctx.logger`).
+   */
+  effect(fn: () => Promise<() => void>): void
   /** The harness's browser HTTP carrier: named route and upgrade-route registries. */
   webServer: PreviewHostWebServer
 }
@@ -47,8 +57,13 @@ function isDeckPageRequest(url: string, base: string): boolean {
 
 /**
  * Mount the deck preview on the harness's own web server: one prefix route for
- * HTTP and one upgrade route for hot module replacement, both as effects so
- * disposing the plugin removes them and stops the server.
+ * HTTP and one upgrade route for hot module replacement, registered from a
+ * single async `ctx.effect` alongside starting the preview server itself, so
+ * cordis owns the whole lifecycle — start, route registration, and teardown
+ * — as one unit. Disposing the plugin removes both routes and stops the
+ * server; a disposal that lands while the server is still starting is
+ * sequenced by cordis after this effect's body settles, so the server it
+ * started is never left running unreferenced.
  *
  * The prefix route splits two ways: a deck page request (base plus one deck
  * name segment, e.g. `/deck/launch` or `/deck/launch/`) is answered with
@@ -59,13 +74,11 @@ function isDeckPageRequest(url: string, base: string): boolean {
  * against the request URL, and `render` is only exercised with a trailing
  * slash by the preview server's own tests.
  *
- * If `startPreviewServer` itself fails, no routes are registered — a plugin
- * that looks mounted while answering nothing is worse than one that visibly
- * failed to start — so the failure is rethrown from a queued microtask,
- * surfacing as an uncaught exception rather than vanishing as a silently
- * unhandled rejection. The internal `ready` promise itself always resolves
- * (to the started server, or to `undefined` on failure) so a later disposal
- * never awaits an already-rejected promise and can never hang.
+ * If `startPreviewServer` itself fails, the effect body rejects before any
+ * route is registered — a plugin that looks mounted while answering nothing
+ * is worse than one that visibly failed to start — and cordis reports that
+ * failure through the owning fiber instead of the routes silently never
+ * appearing.
  * @param ctx - the plugin context, injecting `webServer`.
  * @param options - session workspace root and the base path to serve under.
  */
@@ -73,39 +86,33 @@ export function mountPreviewRoute(
   ctx: PreviewHostContext,
   options: { readonly workspace: string, readonly base: string },
 ): void {
-  const ready: Promise<PreviewServer | undefined> = startPreviewServer(options).then(
-    (started) => {
-      ctx.effect(() => {
-        const routes = [
-          ctx.webServer.register({
-            kind: 'prefix',
-            path: options.base,
-            handler: async (req, res) => {
-              const url = req.url ?? options.base
-              if (isDeckPageRequest(url, options.base)) {
-                const renderUrl = url.endsWith('/') ? url : `${url}/`
-                const html = await started.render(renderUrl)
-                res.statusCode = 200
-                res.setHeader('Content-Type', 'text/html')
-                res.end(html)
-                return
-              }
-              started.middleware(req, res, () => { res.statusCode = 404; res.end() })
-            },
-          }),
-          ctx.webServer.registerUpgrade({
-            path: options.base,
-            handler: (req, socket, head) => { started.handleUpgrade(req, socket, head) },
-          }),
-        ]
-        return () => { for (const dispose of routes) dispose() }
-      })
-      return started
-    },
-    (error: unknown) => {
-      queueMicrotask(() => { throw error })
-      return undefined
-    },
-  )
-  ctx.effect(() => () => { void ready.then(async (started) => { await started?.close() }) })
+  ctx.effect(async () => {
+    const started = await startPreviewServer(options)
+    const routes = [
+      ctx.webServer.register({
+        kind: 'prefix',
+        path: options.base,
+        handler: async (req, res) => {
+          const url = req.url ?? options.base
+          if (isDeckPageRequest(url, options.base)) {
+            const renderUrl = url.endsWith('/') ? url : `${url}/`
+            const html = await started.render(renderUrl)
+            res.statusCode = 200
+            res.setHeader('Content-Type', 'text/html')
+            res.end(html)
+            return
+          }
+          started.middleware(req, res, () => { res.statusCode = 404; res.end() })
+        },
+      }),
+      ctx.webServer.registerUpgrade({
+        path: options.base,
+        handler: (req, socket, head) => { started.handleUpgrade(req, socket, head) },
+      }),
+    ]
+    return () => {
+      for (const dispose of routes) dispose()
+      void started.close()
+    }
+  })
 }
