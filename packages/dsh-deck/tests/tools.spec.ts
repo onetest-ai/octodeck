@@ -1,4 +1,4 @@
-import { mkdtemp, readFile } from 'node:fs/promises'
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -35,6 +35,34 @@ describe('deck_view', () => {
   it('fails loudly for a deck that does not exist', async () => {
     const workspace = await mkdtemp(join(tmpdir(), 'dsh-deck-'))
     await expect(viewDeck({ name: 'ghost' }, { workspace, base: '/deck' })).rejects.toThrow(/ghost/)
+  })
+
+  it('fails loud naming the file when deck.json is missing its theme', async () => {
+    const workspace = await mkdtemp(join(tmpdir(), 'dsh-deck-'))
+    await createDeck({ name: 'launch' }, { workspace, base: '/deck' })
+    const deckJsonPath = join(workspace, 'decks', 'launch', 'deck.json')
+    await writeFile(deckJsonPath, JSON.stringify({ title: 'Launch' }), 'utf8')
+    await expect(viewDeck({ name: 'launch' }, { workspace, base: '/deck' }))
+      .rejects.toThrow(deckJsonPath)
+  })
+
+  it('fails loud naming the file when deck.json theme is not a string', async () => {
+    const workspace = await mkdtemp(join(tmpdir(), 'dsh-deck-'))
+    await createDeck({ name: 'launch' }, { workspace, base: '/deck' })
+    const deckJsonPath = join(workspace, 'decks', 'launch', 'deck.json')
+    await writeFile(deckJsonPath, JSON.stringify({ title: 'Launch', theme: 42 }), 'utf8')
+    await expect(viewDeck({ name: 'launch' }, { workspace, base: '/deck' }))
+      .rejects.toThrow(deckJsonPath)
+  })
+
+  it('propagates an aborted signal instead of misreporting a missing deck', async () => {
+    const workspace = await mkdtemp(join(tmpdir(), 'dsh-deck-'))
+    await createDeck({ name: 'launch' }, { workspace, base: '/deck' })
+    const controller = new AbortController()
+    controller.abort()
+    await expect(
+      viewDeck({ name: 'launch' }, { workspace, base: '/deck' }, { signal: controller.signal }),
+    ).rejects.toThrow(/abort/i)
   })
 })
 

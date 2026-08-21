@@ -26,14 +26,29 @@ export interface DeckView {
   readonly theme: string
 }
 
+/** The subset of a tool's `exec` this file forwards: only the caller's cancellation signal. */
+export interface CancelableExec {
+  readonly signal?: AbortSignal
+}
+
 /**
  * Create a deck in the session workspace.
  * @param request - the caller's deck request.
  * @param options - workspace root and mounted preview base.
+ * @param exec - the caller's execution context, for its cancellation signal.
  * @returns the created deck's identity, paths, and preview route.
  */
-export async function createDeck(request: DeckRequest, options: PreviewOptions): Promise<DeckCreated> {
+export async function createDeck(
+  request: DeckRequest,
+  options: PreviewOptions,
+  exec?: CancelableExec,
+): Promise<DeckCreated> {
   const spec = resolveDeck(request, options.workspace)
+  // `scaffoldDeck`'s `mkdir`/`writeFile` calls (src/octodeck/scaffold.ts,
+  // Task 4, out of scope here) accept no `AbortSignal`, so `exec.signal` has
+  // nowhere to forward into for this tool body. Accepted anyway, for
+  // symmetry with `viewDeck` and so a future `scaffoldDeck` signature change
+  // has a signal ready to hand it.
   await scaffoldDeck(spec)
   return {
     deckId: spec.id,
@@ -48,24 +63,63 @@ export async function createDeck(request: DeckRequest, options: PreviewOptions):
  * Report an existing deck for preview.
  * @param request - names the deck to view.
  * @param options - workspace root and mounted preview base.
+ * @param exec - the caller's execution context; its cancellation signal is
+ *   forwarded into both file reads.
  * @returns the deck's preview route, slide count, and theme.
- * @throws {Error} when the deck is not on disk.
+ * @throws {Error} when the deck is not on disk, or when the caller's signal aborts.
  */
-export async function viewDeck(request: DeckRequest, options: PreviewOptions): Promise<DeckView> {
+export async function viewDeck(
+  request: DeckRequest,
+  options: PreviewOptions,
+  exec?: CancelableExec,
+): Promise<DeckView> {
   const spec = resolveDeck(request, options.workspace)
-  let meta: { theme: string }
+  const signal = exec?.signal
+  const deckJsonPath = join(spec.directory, 'deck.json')
+  let raw: string
   try {
-    meta = JSON.parse(await readFile(join(spec.directory, 'deck.json'), 'utf8')) as { theme: string }
+    raw = await readFile(deckJsonPath, { encoding: 'utf8', signal })
   } catch (cause) {
+    // An aborted read is the caller's own cancellation, not a missing deck;
+    // report it as-is rather than mislabeling it as "no deck named X".
+    if (signal?.aborted) throw cause
     throw new Error(`no deck named ${spec.name} in this workspace`, { cause })
   }
-  const slides = await readFile(join(spec.directory, 'slides.ts'), 'utf8')
+  const meta = parseDeckMeta(raw, deckJsonPath)
+  const slides = await readFile(join(spec.directory, 'slides.ts'), { encoding: 'utf8', signal })
   return {
     deckId: spec.id,
     route: `${options.base}/${spec.name}/`,
     slideCount: countSlides(slides),
     theme: meta.theme,
   }
+}
+
+/**
+ * Parse and validate `deck.json`'s contents. The file is a durable-file
+ * boundary — a hand-edited or corrupted copy is never trusted as an
+ * asserted cast — so malformed JSON, a non-object, or a non-string `theme`
+ * all fail loud, naming `path` and what was wrong with it.
+ * @param raw - the file's raw text.
+ * @param path - the file's absolute path, named in any thrown error.
+ * @returns the validated `theme`.
+ * @throws {Error} when `raw` is not valid JSON, not an object, or has no string `theme`.
+ */
+function parseDeckMeta(raw: string, path: string): { theme: string } {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch (cause) {
+    throw new Error(`${path} is not valid JSON`, { cause })
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error(`${path} must contain a JSON object, received ${JSON.stringify(parsed)}`)
+  }
+  const theme = (parsed as Record<string, unknown>).theme
+  if (typeof theme !== 'string') {
+    throw new Error(`${path} must declare a string "theme", received ${JSON.stringify(theme)}`)
+  }
+  return { theme }
 }
 
 /**

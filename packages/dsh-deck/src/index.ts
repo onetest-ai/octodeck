@@ -10,6 +10,39 @@ export interface Config {
   readonly base: string
 }
 
+/**
+ * Runtime schema cordis validates this plugin's config against before its
+ * fiber starts (`Plugin.Base.Config?: StandardSchemaV1<any, T>`). Without
+ * it, a malformed `base` — missing, wrong type, no leading slash — would
+ * pass through unchecked instead of failing loud at load. Hand-written
+ * against the tiny StandardSchemaV1 protocol (https://standardschema.dev,
+ * a `~standard` object with `version`, `vendor`, and `validate`) rather than
+ * a schema library: `@deepseek-ai/schemastery` is present in `node_modules`
+ * only transitively here, and a single required field does not earn a new
+ * declared dependency.
+ */
+export const Config = {
+  '~standard': {
+    version: 1 as const,
+    vendor: '@onetest/dsh-deck',
+    validate(value: unknown) {
+      if (typeof value !== 'object' || value === null) {
+        return { issues: [{ message: 'expected a config object' }] }
+      }
+      const base = (value as { base?: unknown }).base
+      if (typeof base !== 'string' || base.length === 0 || !base.startsWith('/')) {
+        return {
+          issues: [{
+            message: `base must be a non-empty string starting with "/", received ${JSON.stringify(base)}`,
+            path: ['base'],
+          }],
+        }
+      }
+      return { value: { base } }
+    },
+  },
+}
+
 export const inject = ['tools', 'webServer']
 
 /**
@@ -55,7 +88,7 @@ export function apply(ctx: Context & PreviewHostContext, config: Config): void {
       },
       render: (_args, value) => [{ type: 'text', text: `Created deck ${value.deckId}; edit ${value.slidesPath}` }],
     },
-    execute: async args => createDeck(args, options),
+    execute: async (args, exec) => createDeck(args, options, exec),
   }))
 
   ctx.tools.register(defineTool({
@@ -75,6 +108,6 @@ export function apply(ctx: Context & PreviewHostContext, config: Config): void {
       },
       render: (_args, value) => [{ type: 'text', text: `Deck ${value.deckId}: ${value.slideCount} slide(s)` }],
     },
-    execute: async args => viewDeck(args, options),
+    execute: async (args, exec) => viewDeck(args, options, exec),
   }))
 }
