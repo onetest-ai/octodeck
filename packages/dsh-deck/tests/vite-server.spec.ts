@@ -54,6 +54,7 @@ describe('startPreviewServer', () => {
     const workspace = await mkdtemp(join(tmpdir(), 'dsh-deck-'))
     await scaffoldDeck(resolveDeck({ name: 'launch' }, workspace))
     const server = await startPreviewServer({ workspace, base: '/deck' })
+    open = server // afterEach rescues this on any failure path below
 
     const html = await server.render('/deck/launch/')
     const entrySrc = html.match(/<script type="module" src="([^"]+entry\.ts)"><\/script>/)?.[1]
@@ -76,6 +77,7 @@ describe('startPreviewServer', () => {
       expect(before.statusCode).toBe(200)
 
       await server.close()
+      open = undefined // deliberately closed; afterEach must not close it again
 
       const after = await rawGet(port, entrySrc as string)
       expect(after.statusCode).not.toBe(200)
