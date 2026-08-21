@@ -39,3 +39,6 @@ Thumbs.db
 *.log
 npm-debug.log*
 dist-*/
+
+# SDD scratch (ledger, briefs, review packages) — not part of the distributable
+.superpowers/
