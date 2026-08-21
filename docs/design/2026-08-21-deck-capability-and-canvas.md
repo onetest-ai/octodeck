@@ -64,9 +64,11 @@ One shared server means a broken slide module in one session can surface a Vite 
 
 ## The canvas and state ownership
 
-The canvas adds no shell layout. It uses two registration points the client stack already provides: a keyed tool view filling `tool.call.toolview`, where the conversation card shows deck name, theme, slide count, and a thumbnail of the current slide; and a registration into `conversation.details.tool`, where the right-hand details column carries the full canvas — an iframe on the deck's preview route, previous and next controls, a slide counter, a theme switcher, and a filmstrip.
+The canvas adds no shell layout. It registers once, as the keyed `tool.call.toolview` renderer for `deck_view` calls (key `'deck_view'`): the full canvas — an iframe on the deck's preview route, previous/next controls, and a slide counter — renders inline in the transcript row for that tool call.
 
-Because Octodeck already scales its fixed frame to the viewport, the panel only has to give the iframe a 16:9 box. Dragging the details boundary rescales the deck with no further code.
+The brief's original assumption was a second registration into `conversation.details.tool`, with the keyed toolview reduced to a small card (deck name, theme, slide count, a thumbnail). Implementation research found that slot is `kind: 'single'`: one occupant renders the output of *every* tool call the user selects, and its shipped occupant hard-dispatches a fixed chain of card models from `owner.block`. Taking that seat for the canvas would silently drop every other tool's details output — exactly the trap the slot's own doc comment warns against, and which the doc comment names `tool.call.toolview` as the intended escape for. `tool.call.toolview` is `kind: 'keyed'`, dispatched by wire tool name, so registering under `'deck_view'` there is additive: it replaces only the generic row for `deck_view` calls and leaves every other tool's rendering untouched. The full canvas lives there instead of a details-column panel; no filmstrip or in-canvas theme switcher shipped in the walking skeleton. See `packages/dsh-deck-canvas/src/client/DeckToolview.tsx`'s own doc comment for the complete resolved-props trace.
+
+Because Octodeck already scales its fixed frame to the viewport, the transcript row only has to give the iframe a 16:9 box.
 
 No new session event is introduced. The `deck_view` canonical value carries the deck id, the preview route, the slide count, and the theme, and it is persisted as a tool result, so the canvas derives everything it renders from the session snapshot and replays correctly. The current slide index and the panel's view state are transient viewing state in a store declared at registration — how-to-draw facts, which the harness keeps out of the session log. The model-visible rule is satisfied because every model-visible input here is a tool call or a tool result, both already logged.
 
@@ -81,7 +83,7 @@ Slides stay plain TypeScript rather than moving behind typed slide tools. This k
 ## Phasing
 
 0. **Spike: the third-party client build.** Prove a dynamic client package built outside the harness repository produces a `lib/client.js` the module table accepts, externalizing the shell-seeded baseline. This single fact decides whether the canvas can ship out-of-tree, so it precedes all feature work.
-1. **Walking skeleton**: the Service Definition, the provider with its bundled runtime and Vite middleware server, `deck_create` and `deck_view`, the host preview route, and — if the spike passed — the canvas in the details column. The end state is that a request for a deck produces a deck the user watches appear.
+1. **Walking skeleton**: the Service Definition, the provider with its bundled runtime and Vite middleware server, `deck_create` and `deck_view`, the host preview route, and — if the spike passed — the canvas as a keyed `tool.call.toolview` renderer (see "The canvas and state ownership" above for why that slot, not the details column, is what shipped). The end state is that a request for a deck produces a deck the user watches appear.
 2. **Skill bundling.** Small, and the largest single jump in output quality.
 3. **Capture**, gated on the browser dependency decision below.
 4. **Exports**, in the order self-contained HTML, then PDF, then PowerPoint.
@@ -104,30 +106,43 @@ Slides stay plain TypeScript rather than moving behind typed slide tools. This k
 
 **Structured slide tools** taking a typed template and slot specification. Rejected: they cap what a slide can be, lose interactive slides, and duplicate the component library as JSON schema in every request.
 
-**A dedicated full-width canvas surface** replacing the conversation column. Rejected for the walking skeleton: it requires new shell layout work in the harness's own layout package, where the existing details column already provides a drag-resizable panel that rescales the deck for free.
+**A dedicated full-width canvas surface** replacing the conversation column. Rejected for the walking skeleton: it requires new shell layout work in the harness's own layout package. (Written against the original details-column assumption; the walking skeleton shipped the canvas as a keyed `tool.call.toolview` row instead, still with no new shell layout, per "The canvas and state ownership" above.)
 
 ## Acceptance criteria
 
 - `dsh plugin --profile web add @onetest/dsh-deck` installs the bundle, and the deck tools appear in a session with no further configuration.
 - A session can create a deck, and the deck's files appear under `decks/<name>/` in the session workspace with no dependency install.
-- The web GUI renders that deck in the details column, and an edit to `slides.ts` repaints the canvas without a tool call or a user gesture.
+- The web GUI renders that deck as a keyed `tool.call.toolview` row (not the details column — see "The canvas and state ownership" above), and an edit to `slides.ts` repaints the canvas without a tool call or a user gesture.
 - The preview works when the browser reaches the Host over a non-loopback authority, not only on the same machine.
 - Disposing the deck plugin stops the Vite server and removes both its HTTP route and its upgrade route.
 - Replaying a session reconstructs the canvas from the logged tool result, with no new session event type.
 - The model receives rendered slide images from `deck_capture` and can act on them within the same turn.
 - A deck exports to a self-contained HTML file that opens offline with no external references.
 
+### Status after the final whole-branch review's fix wave (2026-08-21/22)
+
+- **Installs with no further configuration** — partially met. The bundle-patch/package.json dependency mismatch is fixed (Finding 3a), but the plugin still only runs from within an Octodeck checkout: `octodeck/framework` resolves to a fixed path into this repository's `src/framework`, which an installed tarball never has. That now fails loudly at server start, naming the resolved path, instead of silently resolving wrong (Finding 3b) — publishing or bundling the framework itself remains out of scope.
+- **Deck creation in the workspace** — met, unaffected by this wave.
+- **Canvas renders and HMR repaints without a tool call or gesture** — met only after this wave. Before it, HMR never connected at all (Finding 1: the upgrade route was registered at the base path, not at the path Vite's client actually requests) and the canvas's iframe hash never matched the framework's own router format (Finding 2), so even a connected HMR socket would have repainted a deck stuck on slide 1. Both are fixed and covered by tests, including a real `vite-hmr` WebSocket opened through the mounted route.
+- **Works over a non-loopback authority** — not independently re-verified live in this wave. Finding 4's fix (narrowing `fs.allow` to `decks/`) removes an unrelated live-verified hole this criterion would otherwise fail on: the entire session workspace was previously readable over `/deck/@fs/...` from any reachable browser.
+- **Disposing stops the server and removes both routes** — met, and safer: `close()` rejecting no longer crashes the whole harness process (Finding 5), and the route-removal/server-stop behavior is exercised by "sequences disposal after an in-flight start" rather than the deleted title-only test (Finding 6).
+- **Replays from the logged tool result** — met, unaffected by this wave.
+- **`deck_capture` renders images to the model** — not met. Not yet built; scoped to a later phase than the walking skeleton this branch covers.
+- **Self-contained HTML export** — not met. Not yet built; same as above.
+
 ## Risks
 
 **The third-party client build is the decisive unknown.** In the harness tree, a dynamic client package builds through a shared tsdown preset that externalizes the shell-seeded baseline — React, Cordis, `ui-primitives`, `ui-slots`. That preset is not published to npm, so this repository must reproduce its externalization contract. If it cannot, the canvas cannot ship out-of-tree and the plugin falls back to host-only tools with an external browser tab for preview, leaving the canvas to the official track. Phase 0 exists to answer this before anything is built on the assumption.
 
-**The hot-module-replacement upgrade shim is unverified.** Forwarding the harness's upgrade route into Vite's hot server is expected to work but is unproven against the shipped Vite version. It is contained: a timeboxed spike, and the child-process alternative above as the fallback.
+**The hot-module-replacement upgrade shim is now verified.** The final whole-branch review found it registered the upgrade route at the mounted base itself, while Vite's injected HMR client always requests `path.posix.join(base, hmr.path)` — the base plus a trailing slash plus the `hmr.path` segment — so the socket the browser actually opened never matched, and HMR never connected in practice. Fixed by deriving both the `server.hmr.path` config and the registered route from one shared expression (`hmrUpgradePath` in `src/octodeck/vite-server.ts`), and proven by a test that opens a real `vite-hmr` WebSocket through the mounted route rather than asserting registration shape.
+
+**The Octodeck runtime must ship as raw source, not built output**, because Vite compiles it at preview time. Within this repository the provider consumes the framework source directly, which removes the duplication problem but not the packaging one: the published package's files must still cover the asset tree and exclude it from bundling. This remains unresolved: `startPreviewServer` now checks the resolved framework path at server start and fails loudly, naming the path and stating that this build only runs from within the octodeck repository, rather than silently resolving to a nonexistent path from an installed tarball — but publishing or bundling the framework itself is still open work.
 
 **Headless capture inherits an existing dependency but not an existing budget.** This repository already carries Playwright and skips its browser download in CI, so capture and the PDF and PowerPoint exports have a working pattern to reuse. What is new is that a harness user installing the plugin acquires that weight. Keeping capture in its own package holds the base installation light and makes a missing browser fail loudly at load rather than in the middle of a deck.
 
-**The Octodeck runtime must ship as raw source, not built output**, because Vite compiles it at preview time. Within this repository the provider consumes the framework source directly, which removes the duplication problem but not the packaging one: the published package's files must still cover the asset tree and exclude it from bundling.
+**Out-of-tree means no harness gates.** The repository-side verifiers that keep in-tree plugins honest — client package rules, cordis config validation, package invariants — do not run here. This repository owns equivalent checks itself, or it drifts from the contracts it depends on and discovers the drift at a user's install. The final whole-branch review found this was not yet true in practice: `.github/workflows/ci.yml` typechecked and built only the framework, and `packages/dsh-deck-canvas/tests/artifact.spec.ts` read a gitignored build artifact with no `pretest` producing it, so a clean checkout's test run failed outright. CI now typechecks and builds both deck packages and runs their test suites (`npm test --workspaces --if-present`), and the canvas package's `pretest` runs `tsdown` before its tests.
 
-**Out-of-tree means no harness gates.** The repository-side verifiers that keep in-tree plugins honest — client package rules, cordis config validation, package invariants — do not run here. This repository owns equivalent checks itself, or it drifts from the contracts it depends on and discovers the drift at a user's install.
+**The dev server previously granted `fs.allow` over the whole session workspace, not just `decks/`.** Confirmed live by the final whole-branch review: any file in the session workspace was readable over `/deck/@fs/...`, a remote read of the user's project once the design's own non-loopback deployment target is reached. `fs.allow` is now `[RUNTIME_ROOT, <workspace>/decks]`.
 
 **Harness compatibility is unpinned.** The plugin depends on slot names, service shapes, and the bundle contract of a project in active pre-release development, which states it will rename and repackage freely. Declare a supported harness range and expect to track it.
 
