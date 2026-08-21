@@ -40,6 +40,8 @@ The packages are named for the harness rather than the engine: `dsh-deck` states
 | `@onetest/dsh-deck-canvas` | The browser half: the deck tool card and the canvas panel. Separate because a dynamic client package needs its own `dsh.client` manifest and `./client` export. |
 | `@onetest/dsh-deck-capture` | Optional headless slide capture. Separate so the base installation carries no browser download. |
 
+The repository becomes an npm workspace: the root package.json gains a `packages/*` workspace list, and the three packages above live under `packages/`. The framework keeps the repository root, its current identity, its scripts, and its release path, so `npm run dev`, `npm run build`, and `npm run new:deck` behave exactly as they do today; the plugin packages reach the framework as a workspace sibling. The bundled-skill template generator and its CI staleness guard predate the workspace, so the walking skeleton verifies that they ignore `packages/` rather than sweeping it into the generated template.
+
 The capability seam's three roles — Service Definition, Service Provider, Consumer — live as distinct modules and cordis entries inside `@onetest/dsh-deck` rather than as three npm packages. The harness glossary splits a seam across packages only when its roles evolve independently, which these do not yet do. Splitting later is a move of files, not a redesign.
 
 `@deepseek-ai/cordis` is a peer dependency of every plugin package here, matching the harness convention.
