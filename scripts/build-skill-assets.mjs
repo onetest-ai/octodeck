@@ -74,33 +74,22 @@ function resolveDependency(packages, fromKey, name) {
 }
 
 /**
- * Prune the copied package-lock.json to the closure reachable from the
- * copied package.json's own dependencies, computed offline by walking the
- * lockfile's own dependency graph — never by shelling out to `npm install
- * --package-lock-only`, which needs registry access and would make this
- * generator (and CI) network-dependent. A repo workspace member's own
- * devDependencies (tsdown, vitest, @deepseek-ai/cordis, …) get hoisted into
- * this repo's shared root `node_modules` and recorded in the lockfile, but
- * are structurally unreachable from the scaffold's own package.json — this
- * removes that dead weight along with the workspace member itself. Erring
- * toward keeping an entry (an unresolvable optional/peer dependency, or a
- * resolution quirk this walk doesn't model) is acceptable; dropping a
- * reachable entry is not.
- * @param lock - the parsed package-lock.json.
- * @param scaffoldPkg - the already-stripped copy of package.json (no
- * `workspaces`) whose own dependency sets seed the reachable closure.
+ * Walk the lockfile's own dependency graph offline (never by shelling out to
+ * `npm install --package-lock-only`, which needs registry access and would
+ * make this generator, and CI, network-dependent) from a set of root
+ * dependency names, returning every `packages` key reachable from them.
+ * Erring toward including an entry (an unresolvable optional/peer
+ * dependency, or a resolution quirk this walk doesn't model) is acceptable;
+ * dropping a reachable entry is not.
+ * @param packages - the lockfile's `packages` map.
+ * @param rootNames - dependency names to seed the walk from, resolved
+ * against the lockfile root (`''`).
+ * @returns the set of reachable `packages` keys (never includes `''`).
  */
-function pruneToReachableClosure(lock, scaffoldPkg) {
-  const packages = lock.packages ?? {}
-  if (packages['']) delete packages[''].workspaces
-  const roots = {
-    ...scaffoldPkg.dependencies,
-    ...scaffoldPkg.devDependencies,
-    ...scaffoldPkg.optionalDependencies,
-  }
+function reachableClosure(packages, rootNames) {
   const reachable = new Set()
   const queue = []
-  for (const name of Object.keys(roots)) {
+  for (const name of Object.keys(rootNames)) {
     const key = resolveDependency(packages, '', name)
     if (key !== undefined) queue.push(key)
   }
@@ -115,9 +104,84 @@ function pruneToReachableClosure(lock, scaffoldPkg) {
       if (depKey !== undefined && !reachable.has(depKey)) queue.push(depKey)
     }
   }
+  return reachable
+}
+
+/**
+ * Prune the copied package-lock.json to the closure reachable from the
+ * copied package.json's own dependencies, and re-derive each surviving
+ * entry's `dev` flag from the scaffold's own manifest rather than trusting
+ * the source repo's flag. The source lockfile's `dev` flags reflect this
+ * repo's workspace-wide reachability (e.g. a sibling workspace member's
+ * production dependency on the same transitive package clears `dev` there),
+ * which has nothing to do with what the standalone scaffold needs — carrying
+ * it over would make the generated template drift on changes elsewhere in
+ * the repo's dependency graph. Instead this walks the closure twice, once
+ * from `dependencies`/`optionalDependencies` (production) and once
+ * additionally including `devDependencies` (the full keep-set): an entry
+ * reachable from the production walk is a production dependency (`dev`
+ * removed) even if it is also a dev dependency; only entries reachable
+ * solely via `devDependencies` are flagged `dev: true`.
+ * @param lock - the parsed package-lock.json.
+ * @param scaffoldPkg - the already-stripped copy of package.json (no
+ * `workspaces`) whose own dependency sets seed the reachable closure.
+ */
+function pruneToReachableClosure(lock, scaffoldPkg) {
+  const packages = lock.packages ?? {}
+  if (packages['']) delete packages[''].workspaces
+  const prodReachable = reachableClosure(packages, {
+    ...scaffoldPkg.dependencies,
+    ...scaffoldPkg.optionalDependencies,
+  })
+  const reachable = reachableClosure(packages, {
+    ...scaffoldPkg.dependencies,
+    ...scaffoldPkg.devDependencies,
+    ...scaffoldPkg.optionalDependencies,
+  })
   for (const key of Object.keys(packages)) {
-    if (key !== '' && !reachable.has(key)) delete packages[key]
+    if (key === '') continue
+    if (!reachable.has(key)) {
+      delete packages[key]
+      continue
+    }
+    packages[key] = setDevFlag(packages[key], !prodReachable.has(key))
   }
+}
+
+/**
+ * Return `entry` with its `dev` key set to match `dev`, preserving npm's own
+ * key placement so a flip that was already correct produces no diff. `npm`
+ * always writes `dev` immediately after `cpu` when present, otherwise
+ * immediately after `integrity` (or `resolved`/`version` for an entry
+ * lacking those) — matching that placement, rather than appending the key at
+ * the end via plain assignment, keeps a re-derived entry byte-identical to
+ * one `npm` would have written itself.
+ * @param entry - one `packages` map entry.
+ * @param dev - whether the entry should carry `dev: true`.
+ * @returns the entry with the flag applied — `entry` itself when clearing
+ * the flag or when it already carried the right one, otherwise a new object
+ * with `dev` inserted at npm's position.
+ */
+function setDevFlag(entry, dev) {
+  // `devOptional` is npm's finer-grained flag for an optionalDependency
+  // reachable through both a dev and a non-dev path elsewhere in a larger
+  // graph — a nuance this derivation, which only distinguishes prod-reachable
+  // from dev-only, doesn't model. Drop it so re-deriving a plain `dev: true`
+  // or no flag below is the entry's complete dev-classification.
+  delete entry.devOptional
+  if (!dev) {
+    delete entry.dev
+    return entry
+  }
+  if (entry.dev === true) return entry
+  const keys = Object.keys(entry)
+  const anchor = ['cpu', 'integrity', 'resolved', 'version'].find((k) => k in entry)
+  const at = anchor === undefined ? 0 : keys.indexOf(anchor) + 1
+  const rebuilt = {}
+  for (const k of keys.slice(0, at)) rebuilt[k] = entry[k]
+  rebuilt.dev = true
+  for (const k of keys.slice(at)) rebuilt[k] = entry[k]
+  return rebuilt
 }
 
 // prune the consumer's package-lock.json to what its (already
