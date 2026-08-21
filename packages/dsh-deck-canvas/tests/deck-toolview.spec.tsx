@@ -39,7 +39,14 @@ describe('DeckToolview', () => {
       subCalls: [],
     }
     render(<DeckToolview block={block} />)
-    expect(screen.getByTitle('launch')).toHaveAttribute('src', '/deck/launch/#1')
+    // Octodeck's hash router (src/framework/deck.ts) parses only
+    // `/^#\/(\d+)$/`; asserting that shape here (not the bare `#1` the
+    // component previously emitted) is what would have caught Finding 2 —
+    // the prior assertion matched the component's own output instead of the
+    // framework format it has to interoperate with.
+    const src = screen.getByTitle('launch').getAttribute('src')
+    expect(src).toMatch(/^\/deck\/launch\/#\/\d+$/)
+    expect(src).toBe('/deck/launch/#/1')
   })
 
   it('renders nothing for a still-running call', () => {

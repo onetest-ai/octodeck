@@ -23,7 +23,7 @@ export function DeckCanvas({ view, slide, onSlide }: DeckCanvasProps) {
       <div style={{ aspectRatio: '16 / 9', width: '100%' }}>
         <iframe
           title={view.deckId}
-          src={`${view.route}#${slide}`}
+          src={`${view.route}#/${slide}`}
           style={{ width: '100%', height: '100%', border: 0 }}
         />
       </div>
