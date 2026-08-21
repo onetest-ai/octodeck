@@ -82,6 +82,54 @@ describe('mountPreviewRoute', () => {
     expect(asset.headers['content-type']).toContain('javascript')
     expect(asset.body).toContain('deck(')
   })
+
+  it('surfaces a startPreviewServer failure instead of silently mounting nothing', async () => {
+    // Vite's `createServer` validates `workspace`/`base` extremely
+    // leniently — a nonexistent, unwritable, oversized, or non-directory
+    // workspace path, and even a non-absolute `base`, all still resolve
+    // successfully (verified by hand before writing this test; none of them
+    // reject `startPreviewServer`). The one deterministic, non-mocked
+    // failure found is a `workspace` value whose string coercion throws:
+    // `vite-server.ts` interpolates `options.workspace` into the alias
+    // replacement template before `createServer` is ever called, so this is
+    // a real synchronous throw inside the real function, not a stubbed
+    // module.
+    const workspace = { toString() { throw new Error('workspace-tostring-boom') } } as unknown as string
+    const { ctx, webServer, disposers } = harness()
+
+    const uncaught = vi.fn()
+    const unhandledRejection = vi.fn()
+    process.once('uncaughtException', uncaught)
+    process.once('unhandledRejection', unhandledRejection)
+
+    mountPreviewRoute(ctx as never, { workspace, base: '/deck' })
+
+    // Let startPreviewServer's rejection propagate through `.then`'s
+    // rejection handler and the resulting queueMicrotask throw.
+    await new Promise(resolve => setImmediate(resolve))
+
+    expect(uncaught).toHaveBeenCalledTimes(1)
+    expect(uncaught.mock.calls[0][0]).toMatchObject({ message: 'workspace-tostring-boom' })
+    expect(unhandledRejection).not.toHaveBeenCalled()
+    // No routes were ever registered: a plugin that failed to start must not
+    // look mounted while answering nothing.
+    expect(webServer.register).not.toHaveBeenCalled()
+    expect(webServer.registerUpgrade).not.toHaveBeenCalled()
+
+    // Disposal must neither hang nor throw, and must not produce a second
+    // unhandled rejection from `ready.then(...)` inside the disposer.
+    const secondUncaught = vi.fn()
+    const secondUnhandledRejection = vi.fn()
+    process.once('uncaughtException', secondUncaught)
+    process.once('unhandledRejection', secondUnhandledRejection)
+    expect(() => { for (const dispose of disposers) dispose() }).not.toThrow()
+    await new Promise(resolve => setImmediate(resolve))
+    expect(secondUncaught).not.toHaveBeenCalled()
+    expect(secondUnhandledRejection).not.toHaveBeenCalled()
+
+    process.removeListener('uncaughtException', secondUncaught)
+    process.removeListener('unhandledRejection', secondUnhandledRejection)
+  })
 })
 
 /** One GET over a real socket, status/headers/body only. */

@@ -1,18 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Duplex } from 'node:stream'
-import type { Context } from '@deepseek-ai/cordis'
 import { startPreviewServer, type PreviewServer } from '../octodeck/vite-server.ts'
-
-declare module '@deepseek-ai/cordis' {
-  interface Context {
-    /**
-     * The harness's browser HTTP carrier: named route and upgrade-route
-     * registries. This package consumes only `register`/`registerUpgrade`;
-     * the owning `@deepseek-ai/dsh-host-webserver` service composes the rest.
-     */
-    webServer: PreviewHostWebServer
-  }
-}
 
 /** The `webServer` surface this package consumes, duck-typed against the harness contract. */
 interface PreviewHostWebServer {
@@ -25,6 +13,20 @@ interface PreviewHostWebServer {
     path: string
     handler: (req: IncomingMessage, socket: Duplex, head: Buffer) => void | Promise<void>
   }): () => void
+}
+
+/**
+ * The plugin-context surface {@link mountPreviewRoute} needs. Structural
+ * rather than `@deepseek-ai/cordis`'s `Context` import so this leaf package
+ * makes no global module augmentation of a third-party module — the real
+ * harness `Context` (which carries a real `webServer`) satisfies this
+ * interface structurally at the call site, with no declaration merge.
+ */
+export interface PreviewHostContext {
+  /** Register a disposable side effect; the returned disposer undoes it. */
+  effect(fn: () => () => void): void
+  /** The harness's browser HTTP carrier: named route and upgrade-route registries. */
+  webServer: PreviewHostWebServer
 }
 
 /**
@@ -56,42 +58,54 @@ function isDeckPageRequest(url: string, base: string): boolean {
  * to one before rendering: the host page's relative module URLs resolve
  * against the request URL, and `render` is only exercised with a trailing
  * slash by the preview server's own tests.
+ *
+ * If `startPreviewServer` itself fails, no routes are registered — a plugin
+ * that looks mounted while answering nothing is worse than one that visibly
+ * failed to start — so the failure is rethrown from a queued microtask,
+ * surfacing as an uncaught exception rather than vanishing as a silently
+ * unhandled rejection. The internal `ready` promise itself always resolves
+ * (to the started server, or to `undefined` on failure) so a later disposal
+ * never awaits an already-rejected promise and can never hang.
  * @param ctx - the plugin context, injecting `webServer`.
  * @param options - session workspace root and the base path to serve under.
  */
 export function mountPreviewRoute(
-  ctx: Context,
+  ctx: PreviewHostContext,
   options: { readonly workspace: string, readonly base: string },
 ): void {
-  let server: PreviewServer | undefined
-  const ready = startPreviewServer(options).then((started) => {
-    server = started
-    ctx.effect(() => {
-      const routes = [
-        ctx.webServer.register({
-          kind: 'prefix',
-          path: options.base,
-          handler: async (req, res) => {
-            const url = req.url ?? options.base
-            if (isDeckPageRequest(url, options.base)) {
-              const renderUrl = url.endsWith('/') ? url : `${url}/`
-              const html = await started.render(renderUrl)
-              res.statusCode = 200
-              res.setHeader('Content-Type', 'text/html')
-              res.end(html)
-              return
-            }
-            started.middleware(req, res, () => { res.statusCode = 404; res.end() })
-          },
-        }),
-        ctx.webServer.registerUpgrade({
-          path: options.base,
-          handler: (req, socket, head) => { started.handleUpgrade(req, socket, head) },
-        }),
-      ]
-      return () => { for (const dispose of routes) dispose() }
-    })
-    return started
-  })
-  ctx.effect(() => () => { void ready.then(async () => { await server?.close() }) })
+  const ready: Promise<PreviewServer | undefined> = startPreviewServer(options).then(
+    (started) => {
+      ctx.effect(() => {
+        const routes = [
+          ctx.webServer.register({
+            kind: 'prefix',
+            path: options.base,
+            handler: async (req, res) => {
+              const url = req.url ?? options.base
+              if (isDeckPageRequest(url, options.base)) {
+                const renderUrl = url.endsWith('/') ? url : `${url}/`
+                const html = await started.render(renderUrl)
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'text/html')
+                res.end(html)
+                return
+              }
+              started.middleware(req, res, () => { res.statusCode = 404; res.end() })
+            },
+          }),
+          ctx.webServer.registerUpgrade({
+            path: options.base,
+            handler: (req, socket, head) => { started.handleUpgrade(req, socket, head) },
+          }),
+        ]
+        return () => { for (const dispose of routes) dispose() }
+      })
+      return started
+    },
+    (error: unknown) => {
+      queueMicrotask(() => { throw error })
+      return undefined
+    },
+  )
+  ctx.effect(() => () => { void ready.then(async (started) => { await started?.close() }) })
 }
