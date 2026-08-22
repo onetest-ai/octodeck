@@ -16,7 +16,7 @@ describe('deckViewTool', () => {
     const meta = tool.output.presentationMeta?.({ name: 'launch' }, value)
 
     // This is exactly the value the deck-canvas keyed `tool.call.toolview`
-    // registration (@onetest/dsh-deck-canvas) reads off `block.meta` — the
+    // registration (@onetest/dsh-deck) reads off `block.meta` — the
     // one path that reaches the canonical value at all (see that package's
     // DeckToolview.tsx for why neither slot exposes `value` directly).
     expect(meta).toEqual(value)

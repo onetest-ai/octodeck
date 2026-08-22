@@ -26,7 +26,7 @@ const collapsedWhitespace = (source: string): string => source.replace(/\s+/g, '
 describe('client bundle artifact', () => {
   it('hands the factory to the harness module loader under its package id', () => {
     expect(collapsedWhitespace(artifact()))
-      .toContain(collapsedWhitespace('window.__ModuleLoader__.load({ id: "@onetest/dsh-deck-canvas", factory: (require) => {'))
+      .toContain(collapsedWhitespace('window.__ModuleLoader__.load({ id: "@onetest/dsh-deck", factory: (require) => {'))
   })
 
   it('closes the factory by returning the CommonJS exports', () => {

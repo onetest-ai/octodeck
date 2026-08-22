@@ -1,11 +1,12 @@
 # The @onetest/dsh-deck bundle patch: the deck capability over the web surface.
-# Host rows mount the seam and its preview route; the canvas row joins the
-# browser roster the modules node half scans into the boot payload.
+# One row carries both halves: the node half mounts the seam, its preview
+# route, and the tools, while the same package's `dsh.client` declaration puts
+# its browser bundle on the roster the modules node half scans into the boot
+# payload. A separate canvas row would be a second package to publish and
+# version in lockstep for no gain.
 - insert:
     - id: deck
       name: '@onetest/dsh-deck'
       config:
         base: /deck
 
-    - id: deck-canvas
-      name: '@onetest/dsh-deck-canvas'

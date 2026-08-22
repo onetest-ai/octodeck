@@ -36,11 +36,12 @@ The packages are named for the harness rather than the engine: `dsh-deck` states
 
 | Package | Contents |
 |---|---|
-| `@onetest/dsh-deck` | The installable bundle: `cordis.patch.yml`, the `deck` Service Definition, the Octodeck Service Provider with its bundled framework assets and Vite server, the `deck_create` / `deck_view` / `deck_export` tool Consumers, the host preview route, and the bundled authoring skill. |
-| `@onetest/dsh-deck-canvas` | The browser half: the deck tool card and the canvas panel. Separate because a dynamic client package needs its own `dsh.client` manifest and `./client` export. |
+| `@onetest/dsh-deck` | The whole plugin, both halves in one package. Node half:  `cordis.patch.yml`, the `deck` Service Definition, the Octodeck Service Provider with its bundled framework assets and Vite server, the `deck_create` / `deck_view` / `deck_export` tool Consumers, the host preview route, and the bundled authoring skill. |
 | `@onetest/dsh-deck-capture` | Optional headless slide capture. Separate so the base installation carries no browser download. |
 
 The repository becomes an npm workspace: the root package.json gains a `packages/*` workspace list, and the three packages above live under `packages/`. The framework keeps the repository root, its current identity, its scripts, and its release path, so `npm run dev`, `npm run build`, and `npm run new:deck` behave exactly as they do today; the plugin packages reach the framework as a workspace sibling. The bundled-skill template generator and its CI staleness guard predate the workspace, so the walking skeleton verifies that they ignore `packages/` rather than sweeping it into the generated template.
+
+The browser half lives in this same package rather than a second one. A dynamic client package does need its own `dsh.client` declaration and `./client` export, but that is a manifest fact, not a packaging one — 43 harness packages carry a node half and a browser half together. The harness's client scanner reads `dsh.client` independently and never consults `dsh.bundle`, so one Loader row contributes both halves. Splitting them would mean a second package to publish, version in lockstep, and depend on by exact version — the earlier split's unpublished sibling dependency was itself the reason a profile install returned 404.
 
 The capability seam's three roles — Service Definition, Service Provider, Consumer — live as distinct modules and cordis entries inside `@onetest/dsh-deck` rather than as three npm packages. The harness glossary splits a seam across packages only when its roles evolve independently, which these do not yet do. Splitting later is a move of files, not a redesign.
 

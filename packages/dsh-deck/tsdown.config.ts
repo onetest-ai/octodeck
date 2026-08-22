@@ -12,21 +12,10 @@ const MODULE_TABLE = new Set([
   '@deepseek-ai/dsh-client-runtime/client',
 ])
 
-const ID = '@onetest/dsh-deck-canvas'
+const ID = '@onetest/dsh-deck'
 const isShared = (specifier: string): boolean => MODULE_TABLE.has(specifier)
 
 export default defineConfig([
-  {
-    name: ID,
-    entry: ['src/index.ts'],
-    outDir: 'lib',
-    format: ['esm'],
-    platform: 'node',
-    target: 'es2024',
-    fixedExtension: false,
-    dts: false,
-    clean: false,
-  },
   {
     name: `${ID}/client`,
     entry: { client: 'src/client/index.ts' },

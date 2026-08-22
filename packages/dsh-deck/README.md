@@ -2,12 +2,7 @@
 
 Render [Octodeck](../../README.md) presentation decks inside a DeepSeek Harness session. The model creates a deck, edits its slides as ordinary TypeScript, and the deck updates in the browser while you watch.
 
-Two packages ship together:
-
-| Package | Half |
-|---|---|
-| `@onetest/dsh-deck` | Host: the deck capability, a Vite preview server mounted on the harness's own HTTP server, and the `deck_create` / `deck_view` tools |
-| `@onetest/dsh-deck-canvas` | Browser: the deck card rendered in the harness transcript |
+One package carries both halves. Its node half mounts the deck capability, a Vite preview server on the harness's own HTTP server, and the `deck_create` / `deck_view` tools; its `dsh.client` half ships the browser bundle that renders the deck card in the transcript. The harness's client scanner reads `dsh.client` independently of `dsh.bundle`, so a single Loader row contributes both — there is no second package to publish or keep in version lockstep.
 
 ## Status
 
@@ -22,8 +17,8 @@ This is a **walking skeleton**, developed against DeepSeek Harness `0.1.1-rc.2`.
 
 ```bash
 npm install
-npm run build --workspace @onetest/dsh-deck
-npm run bundle --workspace @onetest/dsh-deck-canvas
+npm run build  --workspace @onetest/dsh-deck   # node half  -> lib/index.js, lib/types
+npm run bundle --workspace @onetest/dsh-deck   # browser half -> lib/client.js
 ```
 
 ## Run the preview server directly
@@ -115,15 +110,23 @@ The bundle's cordis patch sets one field, validated at load — a malformed valu
 
 ## Known limitations
 
-**Installing into a `dsh` profile does not work yet.** `dsh plugin --profile web add @onetest/dsh-deck` fails, for three independent reasons, each observed directly:
+**It installs and composes, but an installed copy cannot serve.** Verified directly against a real harness:
 
-1. Neither package is published, so the registry returns 404.
-2. The dependency closure includes harness packages that are not on the public registry (`@deepseek-ai/dsh-type-meta`), so even a `file:` install cannot resolve.
-3. The plugin links against the published `@deepseek-ai/cordis`, while the harness runs a **vendored** copy of the same version that exports symbols the published one does not (`FiberState`). Loading the plugin into a source-run harness therefore fails with `SyntaxError: The requested module '@deepseek-ai/cordis' does not provide an export named 'FiberState'`. Resolving this needs the plugin and the harness to share one cordis identity.
+```bash
+dsh plugin --profile web add file:/path/to/octodeck/packages/dsh-deck
+# then add "@onetest/dsh-deck" to dsh.profile.bundles in the profile's package.json
+dsh --profile web
+```
+
+The install succeeds, `dsh --profile web --dump-config` shows the `deck` row composed with its config, and the harness boots. What fails is serving: package managers copy a `file:` dependency into the profile rather than symlinking it, so the installed copy computes the framework path relative to the profile directory (`<profile>/node_modules/src/framework`), which does not exist. The loud framework check fires and the preview never mounts — the deck route returns 404.
+
+Until the framework is shipped with the package or declared as a dependency, run the preview server directly from this repository, as above.
 
 **Updates are a page reload, not an in-place hot update.** A deck's `slides.ts` is reached through a dynamic `import()` the transform pipeline does not rewrite, so it never enters Vite's hot-update graph and Vite reloads the page instead. The deck updates, but returns to slide 1 each time.
 
 **The workspace is the Host process's working directory.** Decks are created relative to wherever `dsh` was started, not per session. A Host serving sessions with different working directories would put every deck in the same place.
+
+**A `dsh plugin add` install must be run from a directory whose parent chain reaches this repository**, for the same framework-path reason.
 
 **Deck files are written with `node:fs` directly**, bypassing the harness's filesystem capability and its sandbox and approval policy. Every other file-writing tool in the harness goes through that seam.
 
