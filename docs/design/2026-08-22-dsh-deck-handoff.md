@@ -75,7 +75,7 @@ Eleven minor findings were recorded during review and deliberately not fixed. Th
 
 Two more surfaced while verifying `0.2.0` against a live harness. Both are pre-existing, neither is a regression, and both cost real diagnosis time:
 
-- **A deck's URL segment is its `deckKey`, not its name.** `isDeckPageRequest` accepts `{base}/{anything}/` as a page, so `{base}/<name>/` renders the host page — and then `runtime/entry.ts` builds `{base}@dsh-deck/<name>/slides.ts` from that segment, which the resolver cannot decode. The result is a **blank deck with a 404 in the console** rather than a 404 from the route. It reads exactly like a broken build; it is a wrong URL. Either reject a segment that does not `decodeDeckKey`, or have the page fail visibly with the reason.
+- ~~**A deck's URL segment is its `deckKey`, not its name.**~~ **Fixed.** `preview-route.ts` now validates the page segment before rendering: a segment that does not decode to a real deck gets a 404 naming the reason, and a bare deck name is called out specifically because that is the mistake people actually make. Previously the host page was served for any single segment, so a wrong URL rendered a blank deck with a console 404 — indistinguishable from a broken build.
 - **`dsh plugin add` exits nonzero on a clean install.** pnpm refuses `esbuild`'s build script (`ERR_PNPM_IGNORED_BUILDS`, via `vite`), and the CLI surfaces that as `pnpm failed in profile directory`. On macOS arm64 nothing is actually broken — the prebuilt binary ships in the platform package and `esbuild.transformSync` works — but the install *looks* failed. Worth either a README note or a `pnpm.onlyBuiltDependencies` entry in the profile.
 
 ## Running it
