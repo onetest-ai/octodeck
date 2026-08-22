@@ -57,6 +57,7 @@
   "scripts": {
     "build": "npm run vendor && tsc -p tsconfig.json && tsdown",
     "bundle": "tsdown",
+    "pretypecheck": "npm run vendor",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json",
     "pretest": "npm run vendor && tsdown",
     "test": "vitest run",
