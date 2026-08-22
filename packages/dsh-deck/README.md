@@ -17,9 +17,13 @@ Developed against DeepSeek Harness `0.1.1-rc.2`, and verified end to end in a re
 
 ```bash
 npm install
-npm run build  --workspace @onetest/dsh-deck   # node half  -> lib/index.js, lib/types
+npm run build  --workspace @onetest/dsh-deck   # node half -> lib/, and vendors the framework
 npm run bundle --workspace @onetest/dsh-deck   # browser half -> lib/client.js
+npm run typecheck --workspace @onetest/dsh-deck
+npm test --workspace @onetest/dsh-deck
 ```
+
+`build` runs `scripts/vendor-framework.mjs` first, copying `src/framework` and `src/themes` from the repository root into `vendor/src/`. The preview server compiles those at request time, so they must be present — a package built without that step fails loudly at server start rather than serving a broken deck.
 
 ## Install into a harness
 
@@ -139,6 +143,31 @@ The bundle's cordis patch sets one field, validated at load — a malformed valu
 **Deck files are written with `node:fs` directly**, bypassing the harness's filesystem capability and its sandbox and approval policy. Every other file-writing tool in the harness goes through that seam.
 
 **Not built yet:** headless slide capture, and PDF / PowerPoint / self-contained HTML export. The design covers them as later phases.
+
+## Publishing
+
+```bash
+npm run build  --workspace @onetest/dsh-deck
+npm run bundle --workspace @onetest/dsh-deck
+npm test       --workspace @onetest/dsh-deck
+
+cd packages/dsh-deck
+npm pack --dry-run          # inspect the payload before it leaves
+npm publish                 # publishConfig.access is already "public"
+```
+
+Check the dry run lists all four of these, because each is something a consumer cannot work without and none is produced by `tsc`:
+
+| Path | Why it must ship |
+|---|---|
+| `vendor/src/framework/**`, `vendor/src/themes/**` | The framework sources the preview server compiles. Absent, every deck fails to render. |
+| `runtime/**` | The deck host page and its entry module. |
+| `cordis.patch.yml` | The bundle patch; without it the package is not installable as a bundle. |
+| `presets/**` | The Deck creator agent preset. |
+
+`prepack` re-runs the vendor step, so a publish from a clean checkout still carries the framework.
+
+Publishing needs an authenticated npm session with rights to the `@onetest` scope (`npm whoami` should answer). Bump `version` first — npm refuses to overwrite a published version.
 
 ## Design
 

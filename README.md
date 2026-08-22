@@ -27,6 +27,19 @@ offline in any browser). It runs the single-file Vite build
 selects which `<name>.html` entry to bundle. (Font embedding needs network at build time; it degrades to remote fonts
 if offline.)
 
+## The DeepSeek Harness plugin
+
+`packages/dsh-deck` is [`@onetest/dsh-deck`](packages/dsh-deck/README.md): an installable DeepSeek Harness plugin that builds these decks from inside a harness session. The agent creates a deck, authors its slides as TypeScript, and the deck renders on a canvas floating over the conversation while it works.
+
+Decks it creates live in the session's selected workspace under `.deck/<name>/` and are ordinary Octodeck decks — the same framework, templates, and themes documented below, exportable the same ways.
+
+```bash
+npm run build  --workspace @onetest/dsh-deck
+npm run bundle --workspace @onetest/dsh-deck
+```
+
+Its README covers installing into a harness profile, the `Deck creator` agent preset, and publishing.
+
 ## Writing slides
 
 Edit `src/slides/index.ts`. Each entry in the exported `slides` array is a

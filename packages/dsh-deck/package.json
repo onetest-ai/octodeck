@@ -1,9 +1,27 @@
 {
   "name": "@onetest/dsh-deck",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Octodeck deck capability for DeepSeek Harness: deck tools, a live preview server, and the deck canvas",
-  "type": "module",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "octodeck",
+    "presentation",
+    "slides",
+    "deck"
+  ],
   "license": "MIT",
+  "homepage": "https://github.com/onetest-ai/octodeck/tree/main/packages/dsh-deck#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/onetest-ai/octodeck.git",
+    "directory": "packages/dsh-deck"
+  },
+  "bugs": {
+    "url": "https://github.com/onetest-ai/octodeck/issues"
+  },
+  "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
   "exports": {
@@ -25,6 +43,9 @@
       "platform": "web"
     }
   },
+  "engines": {
+    "node": "^22.19 || >=24"
+  },
   "files": [
     "lib/**/*.js",
     "lib/types/**/*.d.ts",
@@ -33,9 +54,6 @@
     "vendor/**",
     "presets/**"
   ],
-  "engines": {
-    "node": "^22.19 || >=24"
-  },
   "scripts": {
     "build": "npm run vendor && tsc -p tsconfig.json",
     "bundle": "tsdown",
@@ -73,5 +91,8 @@
     "typescript": "^5.6.0",
     "vitest": "^2.1.0",
     "ws": "^8.18.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
