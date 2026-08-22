@@ -35,6 +35,7 @@ const backdrop = t.backdrop.rich && existsSync(bakedPath) ? readFileSync(bakedPa
 const FONT_VARIANTS: Record<string, [string, string][]> = {
   'Geist': [['Geist', 'Geist-Regular.ttf'], ['Geist Medium', 'Geist-Medium.ttf'], ['Geist SemiBold', 'Geist-SemiBold.ttf']],
   'Geist Mono': [['Geist Mono', 'GeistMono-Regular.ttf'], ['Geist Mono Medium', 'GeistMono-Medium.ttf']],
+  'Inter': [['Inter', 'Inter-Regular.ttf'], ['Inter Medium', 'Inter-Medium.ttf'], ['Inter SemiBold', 'Inter-SemiBold.ttf'], ['Inter Bold', 'Inter-Bold.ttf']],
   'Switzer': [['Switzer', 'Switzer-Regular.ttf'], ['Switzer Medium', 'Switzer-Medium.ttf'], ['Switzer Semibold', 'Switzer-Semibold.ttf'], ['Switzer Bold', 'Switzer-Bold.ttf']],
 }
 const fontDir = fileURLToPath(new URL('./fonts/', import.meta.url))
