@@ -1,6 +1,6 @@
 import {
   closeCanvas, defaultGeometry, initialCanvas, placeCanvas, showDeck,
-  type CanvasGeometry, type CanvasState,
+  type CanvasGeometry, type CanvasMode, type CanvasState,
 } from './canvas-state.ts'
 import type { DeckViewData } from './deck-view.ts'
 
@@ -16,6 +16,16 @@ export interface CanvasController {
   show: (view: DeckViewData) => void
   close: () => void
   place: (geometry: CanvasGeometry) => void
+  /** Choose the theme the canvas displays, and that exports follow. */
+  setTheme: (theme: string) => void
+  /** Choose light or dark on the displayed theme. */
+  setMode: (mode: CanvasMode) => void
+  /** Begin an export of `total` slides. */
+  startExport: (format: string, total: number) => void
+  /** Report extraction progress; ignored once the export has finished. */
+  exportProgress: (done: number, total: number) => void
+  /** Finish an export, recording `error` when it failed. */
+  exportDone: (error?: string) => void
 }
 
 /** The viewport the canvas is clamped against; injected so the logic stays testable. */
@@ -63,5 +73,26 @@ export function createCanvasController(viewport: ViewportReader = browserViewpor
     },
     close: () => { commit(closeCanvas) },
     place: (geometry) => { commit((draft) => { placeCanvas(draft, geometry, viewport()) }) },
+    setTheme: (theme) => { commit((draft) => { draft.theme = theme }) },
+    setMode: (mode) => { commit((draft) => { draft.mode = mode }) },
+    startExport: (format, total) => {
+      commit((draft) => {
+        draft.exportStatus = { format, done: 0, total }
+        draft.exportError = null
+      })
+    },
+    exportProgress: (done, total) => {
+      commit((draft) => {
+        // A late callback from an aborted run must not resurrect the progress
+        // row after `exportDone` cleared it.
+        if (draft.exportStatus !== null) draft.exportStatus = { ...draft.exportStatus, done, total }
+      })
+    },
+    exportDone: (error) => {
+      commit((draft) => {
+        draft.exportStatus = null
+        draft.exportError = error ?? null
+      })
+    },
   }
 }

@@ -16,7 +16,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 // ...and ui-conversation's own slots depend on ui-layout's `declare module`
 // for the top-level `'conversation'`/`'details'` slot names.
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
-import { DeckOverlay } from './DeckOverlay.tsx'
+import { DeckOverlay, type ExportFormat } from './DeckOverlay.tsx'
 import { DeckRow } from './DeckRow.tsx'
 import { createCanvasController } from './canvas-controller.ts'
 
@@ -55,6 +55,17 @@ export function apply(ctx: Context): void {
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay',
     id: 'deck-canvas',
-    inject: () => ({ hooks: { deckCanvas: canvas.store }, close: canvas.close, place: canvas.place }),
+    inject: () => ({
+      hooks: { deckCanvas: canvas.store },
+      close: canvas.close,
+      place: canvas.place,
+      setTheme: canvas.setTheme,
+      setMode: canvas.setMode,
+      // Replaced by the real export driver once the extractor lands; until
+      // then the menu reports rather than silently doing nothing.
+      startExport: (format: ExportFormat) => {
+        canvas.exportDone(`${format.toUpperCase()} export is not wired up yet`)
+      },
+    }),
   }, DeckOverlay))
 }
