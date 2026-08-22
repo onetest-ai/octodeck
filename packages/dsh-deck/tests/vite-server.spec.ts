@@ -3,6 +3,8 @@ import { mkdtemp, realpath, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { DECK_DIRECTORY, deckKey } from '../src/definition.ts'
+import { DECK_DIRECTORY } from '../src/definition.ts'
 import { resolveDeck } from '../src/definition.ts'
 import { scaffoldDeck } from '../src/octodeck/scaffold.ts'
 import { startPreviewServer } from '../src/octodeck/vite-server.ts'
@@ -37,7 +39,7 @@ describe('startPreviewServer', () => {
     await scaffoldDeck(resolveDeck({ name: 'launch' }, workspace))
     const server = await startPreviewServer({ workspace, base: '/deck' })
     open = server
-    const html = await server.render('/deck/launch/')
+    const html = await server.render(`/deck/${deckKey(join(workspace, DECK_DIRECTORY, 'launch'))}/`)
     expect(html).toContain('<div id="deck">')
   })
 
@@ -56,7 +58,7 @@ describe('startPreviewServer', () => {
     const server = await startPreviewServer({ workspace, base: '/deck' })
     open = server // afterEach rescues this on any failure path below
 
-    const html = await server.render('/deck/launch/')
+    const html = await server.render(`/deck/${deckKey(join(workspace, DECK_DIRECTORY, 'launch'))}/`)
     const entrySrc = html.match(/<script type="module" src="([^"]+entry\.ts)"><\/script>/)?.[1]
     expect(entrySrc).toBeDefined()
 
@@ -92,7 +94,7 @@ describe('startPreviewServer', () => {
     await scaffoldDeck(resolveDeck({ name: 'launch' }, workspace))
     const server = await startPreviewServer({ workspace, base: '/deck' })
     open = server
-    const html = await server.render('/deck/launch/')
+    const html = await server.render(`/deck/${deckKey(join(workspace, DECK_DIRECTORY, 'launch'))}/`)
     expect(html).toContain('src="/deck/entry.ts"')
     expect(html).not.toContain('src="/entry.ts"')
   })
@@ -103,7 +105,7 @@ describe('startPreviewServer', () => {
     const server = await startPreviewServer({ workspace, base: '/deck' })
     open = server
 
-    const html = await server.render('/deck/launch/')
+    const html = await server.render(`/deck/${deckKey(join(workspace, DECK_DIRECTORY, 'launch'))}/`)
     const entrySrc = html.match(/<script type="module" src="([^"]+entry\.ts)"><\/script>/)?.[1]
     expect(entrySrc).toBeDefined()
 
@@ -131,10 +133,10 @@ describe('startPreviewServer', () => {
   })
 
   describe('fs.allow narrowing (Finding 4)', () => {
-    it('refuses a workspace file outside decks/ over @fs', async () => {
+    it('refuses a workspace file outside the deck directory over @fs', async () => {
       const workspace = await mkdtemp(join(tmpdir(), 'dsh-deck-'))
       await scaffoldDeck(resolveDeck({ name: 'launch' }, workspace))
-      // A file that lives in the session workspace but outside decks/ — the
+      // A file that lives in the session workspace but outside the deck directory — the
       // reviewer verified live that the pre-fix `fs.allow: [RUNTIME_ROOT,
       // workspace]` served exactly this kind of file over `/deck/@fs/...`,
       // a remote read of the user's project on a non-loopback deployment.
@@ -158,11 +160,11 @@ describe('startPreviewServer', () => {
       }
     })
 
-    it('still serves a scaffolded deck file under decks/', async () => {
+    it('still serves a scaffolded deck file under the deck directory', async () => {
       const workspace = await mkdtemp(join(tmpdir(), 'dsh-deck-'))
       await scaffoldDeck(resolveDeck({ name: 'launch' }, workspace))
       const realWorkspace = await realpath(workspace)
-      const slidesPath = join(realWorkspace, 'decks', 'launch', 'slides.ts')
+      const slidesPath = join(realWorkspace, DECK_DIRECTORY, 'launch', 'slides.ts')
 
       const server = await startPreviewServer({ workspace, base: '/deck' })
       open = server

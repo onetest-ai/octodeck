@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_THEME, resolveDeck } from '../src/definition.ts'
+import { DECK_DIRECTORY, DEFAULT_THEME, resolveDeck } from '../src/definition.ts'
 
 describe('resolveDeck', () => {
   it('defaults the theme explicitly rather than deep inside the provider', () => {
@@ -11,8 +11,9 @@ describe('resolveDeck', () => {
     expect(resolveDeck({ name: 'launch-plan' }, '/w').title).toBe('Launch Plan')
   })
 
-  it('places the deck under decks/<name> in the workspace', () => {
-    expect(resolveDeck({ name: 'launch' }, '/w').directory).toBe('/w/decks/launch')
+  it('places the deck under the deck directory in the workspace', () => {
+    expect(resolveDeck({ name: 'launch' }, '/w').directory).toBe(`/w/${DECK_DIRECTORY}/launch`)
+    expect(DECK_DIRECTORY).toBe('.deck')
   })
 
   it('rejects a theme the framework does not ship', () => {

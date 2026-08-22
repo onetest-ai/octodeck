@@ -2,7 +2,7 @@ import { chmod, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { resolveDeck } from '../src/definition.ts'
+import { DECK_DIRECTORY, resolveDeck } from '../src/definition.ts'
 import { scaffoldDeck } from '../src/octodeck/scaffold.ts'
 
 async function scaffoldInTemp() {
@@ -42,7 +42,7 @@ describe('scaffoldDeck', () => {
     async () => {
       const workspace = await mkdtemp(join(tmpdir(), 'dsh-deck-'))
       const spec = resolveDeck({ name: 'launch' }, workspace)
-      const decksPath = join(workspace, 'decks')
+      const decksPath = join(workspace, DECK_DIRECTORY)
       // Create the parent directory, then make it read-only to force EACCES
       // on the inner mkdir(spec.directory, { recursive: false })
       await mkdir(decksPath)

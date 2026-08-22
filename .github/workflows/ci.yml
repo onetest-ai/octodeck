@@ -23,12 +23,13 @@ jobs:
       - name: Typecheck + build
         run: npm run build
 
-      - name: Deck packages — typecheck/build (packages/dsh-deck, packages/dsh-deck-canvas)
+      - name: Deck plugin — typecheck and build both halves
         run: |
+          npm run typecheck -w packages/dsh-deck
           npm run build -w packages/dsh-deck
-          npm run typecheck -w packages/dsh-deck-canvas
+          npm run bundle -w packages/dsh-deck
 
-      - name: Deck packages — test (packages/dsh-deck, packages/dsh-deck-canvas)
+      - name: Deck plugin — test
         run: npm test --workspaces --if-present
 
       - name: Validate SKILL.md (agentskills.io spec)

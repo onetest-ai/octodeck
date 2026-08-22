@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Duplex } from 'node:stream'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { DECK_DIRECTORY, deckKey } from '../src/definition.ts'
 import { resolveDeck } from '../src/definition.ts'
 import { scaffoldDeck } from '../src/octodeck/scaffold.ts'
 import { mountPreviewRoute, type PreviewHostContext } from '../src/host/preview-route.ts'
@@ -108,7 +109,7 @@ describe('mountPreviewRoute', () => {
       },
     }
 
-    const page = await rawRequest(port, '/deck/launch/')
+    const page = await rawRequest(port, `/deck/${deckKey(join(workspace, DECK_DIRECTORY, 'launch'))}/`)
     expect(page.statusCode).toBe(200)
     expect(page.headers['content-type']).toContain('text/html')
     expect(page.body).toContain('<div id="deck">')
@@ -140,7 +141,7 @@ describe('mountPreviewRoute', () => {
     // through the mounted route (the harness webserver only forwards
     // `/deck/*` to this middleware), not 404 the way a bare `/@dsh-deck/...`
     // path would (this is the regression this test now guards against).
-    const slidesModule = await rawRequest(port, '/deck/@dsh-deck/launch/slides.ts')
+    const slidesModule = await rawRequest(port, `/deck/@dsh-deck/${deckKey(join(workspace, DECK_DIRECTORY, 'launch'))}/slides.ts`)
     expect(slidesModule.statusCode).toBe(200)
     expect(slidesModule.headers['content-type']).toContain('javascript')
 
@@ -150,10 +151,10 @@ describe('mountPreviewRoute', () => {
     // import is `@vite-ignore`) falls through to static file serving without
     // it — which does not know this package's `/@dsh-deck/` alias and 404s,
     // confirmed by the assertion right below.
-    const deckJsonBare = await rawRequest(port, '/deck/@dsh-deck/launch/deck.json')
+    const deckJsonBare = await rawRequest(port, `/deck/@dsh-deck/${deckKey(join(workspace, DECK_DIRECTORY, 'launch'))}/deck.json`)
     expect(deckJsonBare.statusCode).toBe(404)
 
-    const deckJson = await rawRequest(port, '/deck/@dsh-deck/launch/deck.json?import')
+    const deckJson = await rawRequest(port, `/deck/@dsh-deck/${deckKey(join(workspace, DECK_DIRECTORY, 'launch'))}/deck.json?import`)
     expect(deckJson.statusCode).toBe(200)
     expect(deckJson.headers['content-type']).toContain('javascript')
     expect(deckJson.body).toContain('midnight')

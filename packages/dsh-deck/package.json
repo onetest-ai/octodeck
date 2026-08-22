@@ -29,17 +29,20 @@
     "lib/**/*.js",
     "lib/types/**/*.d.ts",
     "cordis.patch.yml",
-    "runtime/**"
+    "runtime/**",
+    "vendor/**"
   ],
   "engines": {
     "node": "^22.19 || >=24"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "npm run vendor && tsc -p tsconfig.json",
     "bundle": "tsdown",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json",
     "pretest": "tsdown",
-    "test": "vitest run"
+    "test": "vitest run",
+    "vendor": "node scripts/vendor-framework.mjs",
+    "prepack": "npm run vendor"
   },
   "dependencies": {
     "vite": "^6.0.0"

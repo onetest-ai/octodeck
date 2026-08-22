@@ -2,6 +2,7 @@ import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { DECK_DIRECTORY, deckKey } from '../src/definition.ts'
 import { deckViewTool } from '../src/index.ts'
 import { createDeck } from '../src/tools/deck-create.ts'
 
@@ -20,7 +21,7 @@ describe('deckViewTool', () => {
     // one path that reaches the canonical value at all (see that package's
     // DeckToolview.tsx for why neither slot exposes `value` directly).
     expect(meta).toEqual(value)
-    expect(meta).toEqual({ deckId: 'launch', route: '/deck/launch/', slideCount: 1, theme: 'midnight' })
+    expect(meta).toEqual({ deckId: 'launch', route: `/deck/${deckKey(join(workspace, DECK_DIRECTORY, 'launch'))}/`, slideCount: 1, theme: 'midnight' })
   })
 
   it('declares a presentationMeta projector at all', () => {

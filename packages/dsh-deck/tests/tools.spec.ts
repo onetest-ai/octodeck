@@ -2,6 +2,7 @@ import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { deckKey, DECK_DIRECTORY } from '../src/definition.ts'
 import { countSlides, createDeck, viewDeck } from '../src/tools/deck-create.ts'
 
 describe('deck_create', () => {
@@ -10,9 +11,9 @@ describe('deck_create', () => {
     const value = await createDeck({ name: 'launch' }, { workspace, base: '/deck' })
     expect(value).toEqual({
       deckId: 'launch',
-      directory: join(workspace, 'decks', 'launch'),
-      slidesPath: join(workspace, 'decks', 'launch', 'slides.ts'),
-      route: '/deck/launch/',
+      directory: join(workspace, DECK_DIRECTORY, 'launch'),
+      slidesPath: join(workspace, DECK_DIRECTORY, 'launch', 'slides.ts'),
+      route: `/deck/${deckKey(join(workspace, DECK_DIRECTORY, 'launch'))}/`,
       theme: 'midnight',
     })
   })
@@ -29,7 +30,7 @@ describe('deck_view', () => {
     const workspace = await mkdtemp(join(tmpdir(), 'dsh-deck-'))
     await createDeck({ name: 'launch' }, { workspace, base: '/deck' })
     const value = await viewDeck({ name: 'launch' }, { workspace, base: '/deck' })
-    expect(value).toEqual({ deckId: 'launch', route: '/deck/launch/', slideCount: 1, theme: 'midnight' })
+    expect(value).toEqual({ deckId: 'launch', route: `/deck/${deckKey(join(workspace, DECK_DIRECTORY, 'launch'))}/`, slideCount: 1, theme: 'midnight' })
   })
 
   it('fails loudly for a deck that does not exist', async () => {
@@ -40,7 +41,7 @@ describe('deck_view', () => {
   it('fails loud naming the file when deck.json is missing its theme', async () => {
     const workspace = await mkdtemp(join(tmpdir(), 'dsh-deck-'))
     await createDeck({ name: 'launch' }, { workspace, base: '/deck' })
-    const deckJsonPath = join(workspace, 'decks', 'launch', 'deck.json')
+    const deckJsonPath = join(workspace, DECK_DIRECTORY, 'launch', 'deck.json')
     await writeFile(deckJsonPath, JSON.stringify({ title: 'Launch' }), 'utf8')
     await expect(viewDeck({ name: 'launch' }, { workspace, base: '/deck' }))
       .rejects.toThrow(deckJsonPath)
@@ -49,7 +50,7 @@ describe('deck_view', () => {
   it('fails loud naming the file when deck.json theme is not a string', async () => {
     const workspace = await mkdtemp(join(tmpdir(), 'dsh-deck-'))
     await createDeck({ name: 'launch' }, { workspace, base: '/deck' })
-    const deckJsonPath = join(workspace, 'decks', 'launch', 'deck.json')
+    const deckJsonPath = join(workspace, DECK_DIRECTORY, 'launch', 'deck.json')
     await writeFile(deckJsonPath, JSON.stringify({ title: 'Launch', theme: 42 }), 'utf8')
     await expect(viewDeck({ name: 'launch' }, { workspace, base: '/deck' }))
       .rejects.toThrow(deckJsonPath)

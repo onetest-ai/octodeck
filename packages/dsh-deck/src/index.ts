@@ -58,6 +58,8 @@ export const inject = ['tools', 'webServer']
  * @param config - the row's validated configuration.
  */
 export function apply(ctx: Context & PreviewHostContext, config: Config): void {
+  // Mount-time fallback only. Each tool call resolves its own session's
+  // selected workspace from the session header; see `workspaceFor`.
   const workspace = process.cwd()
   mountPreviewRoute(ctx, { workspace, base: config.base })
   const options = { workspace, base: config.base }
@@ -123,7 +125,7 @@ export function deckViewTool(options: PreviewOptions): ToolDefinition {
       render: (_args, value) => [{ type: 'text', text: `Deck ${value.deckId}: ${value.slideCount} slide(s)` }],
       // Threads the canonical DeckView value onto the tool/result event's
       // `meta`, verbatim and replay-stable, so the deck-canvas keyed
-      // `tool.call.toolview` registration (@onetest/dsh-deck-canvas) can
+      // `tool.call.toolview` registration (this package's browser half) can
       // render from it: neither slot exposes a tool's raw canonical value
       // otherwise, only the model-facing `content` and this projected `meta`.
       presentationMeta: (_args, value) => value,

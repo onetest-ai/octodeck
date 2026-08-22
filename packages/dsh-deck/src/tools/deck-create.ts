@@ -1,12 +1,33 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { resolveDeck, type DeckRequest } from '../definition.ts'
+import { deckKey, resolveDeck, type DeckRequest } from '../definition.ts'
 import { scaffoldDeck } from '../octodeck/scaffold.ts'
 
 /** Where a deck is served, given the mounted base path. */
 export interface PreviewOptions {
+  /**
+   * Fallback workspace root, used only when a call arrives without session
+   * metadata. A real tool call resolves its own session's selected workspace;
+   * see {@link workspaceFor}.
+   */
   readonly workspace: string
   readonly base: string
+}
+
+/**
+ * The workspace a call's decks belong to: the session's own selected cwd,
+ * falling back to the mount-time root when a call carries no session (a
+ * direct programmatic call, or a host that creates agents without `meta.cwd`).
+ *
+ * Reading it per call rather than fixing it at mount is what lets one Host
+ * serve sessions rooted in different directories — the harness's own bash tool
+ * resolves its workdir from the same `session.header.cwd`.
+ * @param exec - the tool execution context.
+ * @param options - mount-time preview options supplying the fallback.
+ * @returns the absolute workspace root for this call.
+ */
+export function workspaceFor(exec: CancelableExec | undefined, options: PreviewOptions): string {
+  return exec?.agent?.session.header.cwd ?? options.workspace
 }
 
 /** The canonical value `deck_create` returns. */
@@ -29,6 +50,12 @@ export interface DeckView {
 /** The subset of a tool's `exec` this file forwards: only the caller's cancellation signal. */
 export interface CancelableExec {
   readonly signal?: AbortSignal
+  /**
+   * The calling agent, when there is one. Its session header carries the
+   * workspace the user selected for that session, which is where the session's
+   * decks belong — see {@link workspaceFor}.
+   */
+  readonly agent?: { readonly session: { readonly header: { readonly cwd?: string } } }
 }
 
 /**
@@ -43,7 +70,7 @@ export async function createDeck(
   options: PreviewOptions,
   exec?: CancelableExec,
 ): Promise<DeckCreated> {
-  const spec = resolveDeck(request, options.workspace)
+  const spec = resolveDeck(request, workspaceFor(exec, options))
   // `scaffoldDeck`'s `mkdir`/`writeFile` calls (src/octodeck/scaffold.ts,
   // Task 4, out of scope here) accept no `AbortSignal`, so `exec.signal` has
   // nowhere to forward into for this tool body. Accepted anyway, for
@@ -54,7 +81,7 @@ export async function createDeck(
     deckId: spec.id,
     directory: spec.directory,
     slidesPath: join(spec.directory, 'slides.ts'),
-    route: `${options.base}/${spec.name}/`,
+    route: `${options.base}/${deckKey(spec.directory)}/`,
     theme: spec.theme,
   }
 }
@@ -73,7 +100,7 @@ export async function viewDeck(
   options: PreviewOptions,
   exec?: CancelableExec,
 ): Promise<DeckView> {
-  const spec = resolveDeck(request, options.workspace)
+  const spec = resolveDeck(request, workspaceFor(exec, options))
   const signal = exec?.signal
   const deckJsonPath = join(spec.directory, 'deck.json')
   let raw: string
@@ -89,7 +116,7 @@ export async function viewDeck(
   const slides = await readFile(join(spec.directory, 'slides.ts'), { encoding: 'utf8', signal })
   return {
     deckId: spec.id,
-    route: `${options.base}/${spec.name}/`,
+    route: `${options.base}/${deckKey(spec.directory)}/`,
     slideCount: countSlides(slides),
     theme: meta.theme,
   }
