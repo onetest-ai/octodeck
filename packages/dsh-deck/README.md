@@ -2,7 +2,7 @@
 
 Render [Octodeck](../../README.md) presentation decks inside a DeepSeek Harness session. The model creates a deck, edits its slides as ordinary TypeScript, and the deck updates in the browser while you watch.
 
-One package carries both halves. Its node half mounts the deck capability, a Vite preview server on the harness's own HTTP server, and the `deck_create` / `deck_view` tools; its `dsh.client` half ships the browser bundle that renders the deck card in the transcript. The harness's client scanner reads `dsh.client` independently of `dsh.bundle`, so a single Loader row contributes both — there is no second package to publish or keep in version lockstep.
+One package carries both halves. Its node half mounts the deck capability, a Vite preview server on the harness's own HTTP server, the `deck_create` / `deck_view` tools, and the export route; its `dsh.client` half ships the browser bundle that renders the deck card in the transcript and the floating canvas, with its theme switcher and export buttons. The harness's client scanner reads `dsh.client` independently of `dsh.bundle`, so a single Loader row contributes both — there is no second package to publish or keep in version lockstep.
 
 ## Status
 
@@ -117,6 +117,32 @@ export const slides: Slide[] = [
 
 Themes: `midnight` (default), `protocol`, `primer`, `radiant`, `commit`, `octo-glass`.
 
+## Exporting a deck
+
+The canvas header carries a theme switcher and an **Export** menu offering three formats. All three are produced without launching a browser: the deck is already rendering in one, so the canvas measures it in a hidden 1280×720 same-origin iframe and posts the measurements to the node half, which assembles the file.
+
+| Format | Produced by | Needs the canvas open |
+|---|---|---|
+| HTML | a Vite single-file build, server-side | no |
+| PPTX | measured slides → OOXML | yes |
+| PDF | measured slides → vector PDF | yes |
+
+Each artifact is both written to `<deck>/export/<name>-<theme>.<ext>` and downloaded, so the model can reference the file on disk and you get it without a file hunt.
+
+**Export follows the theme the canvas is showing**, not the one in `deck.json`. Switching themes in the header is preview-only — it never rewrites what the model authored — so you can compare all six and export whichever you prefer.
+
+### Which format renders faithfully where
+
+| | macOS | Windows |
+|---|---|---|
+| PDF | fonts embedded, exact | fonts embedded, exact |
+| HTML | fonts inlined, exact | fonts inlined, exact |
+| PPTX | **fonts substituted** | fonts embedded, exact |
+
+PowerPoint for Mac ignores embedded fonts entirely — a platform limitation, not an export defect. The file does carry them, and Windows PowerPoint uses them. **Prefer PDF when the deck must look right on any machine.**
+
+The routes, if you want to drive them yourself, are `GET {base}/@export/{key}/html?theme=&mode=` and `POST {base}/@export/{key}/{pptx|pdf}` with a `{ raw, theme, mode }` body. `@export` rather than `export` because `export` is a legal deck name and would otherwise shadow a real deck.
+
 ## Configuration
 
 The bundle's cordis patch sets one field, validated at load — a malformed value fails the plugin's fiber rather than passing silently:
@@ -142,7 +168,15 @@ The bundle's cordis patch sets one field, validated at load — a malformed valu
 
 **Deck files are written with `node:fs` directly**, bypassing the harness's filesystem capability and its sandbox and approval policy. Every other file-writing tool in the harness goes through that seam.
 
-**Not built yet:** headless slide capture, and PDF / PowerPoint / self-contained HTML export. The design covers them as later phases.
+**Export is client-initiated; there is no `deck_export` tool.** PPTX and PDF need the deck measured in a browser, and the server has no renderer of its own — that is the direct cost of exporting without shipping a headless browser. The model can read an exported file, but cannot produce one unattended.
+
+**PPTX fonts substitute on macOS.** Embedded fonts in a `.pptx` are a Windows PowerPoint feature; see the table above.
+
+**Cabinet Grotesk is not bundled**, so `primer`'s display face falls back in exports. It is Fontshare-licensed and not redistributable here. Geist, Geist Mono, Inter, and Switzer are bundled and cover the other five themes.
+
+**PDF connector arrowheads are not drawn.** Diagram nodes, connectors, and labels all export; the small arrow markers on connector ends do not.
+
+**Not built yet:** headless slide capture. The design covers it as a later phase.
 
 ## Publishing
 

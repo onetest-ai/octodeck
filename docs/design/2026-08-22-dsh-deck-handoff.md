@@ -4,9 +4,11 @@ Status as of 2026-08-22. Read [the design record](2026-08-21-deck-capability-and
 
 ## Where things stand
 
-`@onetest/dsh-deck@0.1.0` is published to npm and installable. `onetest-ai/octodeck` is public, MIT, CI green. 75 tests pass from a bare `npm test` on a fresh clone.
+`@onetest/dsh-deck@0.1.0` is published to npm and installable. `onetest-ai/octodeck` is public, MIT, CI green. 177 tests pass from a bare `npm test` on a fresh clone.
 
 The whole loop is verified live against a real harness driven by a local model through Ollama: the agent creates a deck, authors its slides as TypeScript, and the deck renders on a canvas floating over the conversation. The deck lands in the session's selected workspace under `.deck/<name>/`.
+
+Since then the canvas has gained a theme switcher and HTML / PPTX / PDF export — see [the export design](2026-08-22-deck-export-and-theme-switcher.md). The decisive constraint there: **the renderer is the browser already showing the deck**, so no headless browser ships with the plugin. `dsh-desktop` was checked and grants nothing extra — its main window runs with no preload, so from inside, the plugin is exactly a web page. The cost is that export is client-initiated, so there is no model-callable `deck_export`.
 
 ## The shape, in one pass
 
@@ -39,7 +41,8 @@ Not proven, and worth knowing before you trust it:
 - **Non-loopback deployments.** The origin/port design is built for it; nobody has run it from another machine.
 - **Session replay.** The canvas derives from the logged tool result specifically so replay works, and `presentationMeta` is directly tested — but no replay has been exercised.
 - **Two sessions in different workspaces, at once.** The per-call workspace resolution is unit-tested; a live two-session run has not happened.
-- **`deck_export`, `deck_capture`.** Not built. Phases 3 and 4 of the design.
+- **`deck_capture`.** Not built. Phase 3 of the design.
+- **Export under a non-loopback deployment.** The canvas measures the deck through a same-origin iframe; a shell that ever served the UI from `file://` while the deck stayed on HTTP would break it, and the extractor fails loudly with a named cause if so.
 
 ## Walls already walked into
 
@@ -82,5 +85,5 @@ A local model works well for testing. Ollama needs a declared `llm-pi-ai` route 
 
 Both were surfaced before the repository was opened and accepted as-is:
 
-- **Switzer** is redistributed under Fontshare's free license, whose terms differ from the OFL. The Geist files now ship their OFL text; Switzer's redistribution has not been confirmed.
+- **Switzer** is redistributed under Fontshare's free license, whose terms differ from the OFL. The Geist and Inter files ship their OFL text; Switzer's redistribution has not been confirmed. **Cabinet Grotesk** — `primer`'s display face, also Fontshare — is deliberately *not* bundled for that reason, so that theme's headings fall back in exports.
 - **`src/themes/octo-glass/vendor/*.css`** appears to originate in a private design-system repository and is now public.

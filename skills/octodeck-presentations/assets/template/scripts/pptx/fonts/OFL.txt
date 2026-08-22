@@ -1,6 +1,7 @@
-Copyright (c) 2023 Vercel, in collaboration with basement.studio
+Copyright (c) 2023 Vercel, in collaboration with basement.studio  (Geist, Geist Mono)
+Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter)  (Inter)
 
-This Font Software is licensed under the SIL Open Font License, Version 1.1.
+These fonts are licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:
 http://scripts.sil.org/OFL
 

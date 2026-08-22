@@ -90,7 +90,19 @@ function shapeXml(s: Shape): string {
     const id = nextId(), b = bbox(s)
     const W = EMU(b.w), H = EMU(b.h)
     const P = (x: number, y: number) => `<a:pt x="${EMU(x - b.x)}" y="${EMU(y - b.y)}"/>`
-    const cmds = s.segs.map((g) => g.c === 'M' ? `<a:moveTo>${P(g.x, g.y)}</a:moveTo>` : g.c === 'L' ? `<a:lnTo>${P(g.x, g.y)}</a:lnTo>` : `<a:cubicBezTo>${P(g.x1, g.y1)}${P(g.x2, g.y2)}${P(g.x, g.y)}</a:cubicBezTo>`).join('') + (s.closed ? '<a:close/>' : '')
+    // Narrowed on `g.c` rather than the ternary's else-branch: `Seg` is a
+    // union whose M/L members carry no control points, so reading g.x1 off
+    // the un-narrowed value is a type error (latent until this file was
+    // typechecked) even though the runtime behaviour is correct.
+    const cmds = s.segs.map((g) => {
+      // Narrowed positively on the cubic member: `Seg`'s move/line member
+      // carries `c: 'M' | 'L'`, so eliminating both literals does not reduce
+      // the union to the cubic one, and reading g.x1 stays an error. Testing
+      // for 'C' does. (Latent until this file was first typechecked; the
+      // runtime behaviour is unchanged.)
+      if (g.c === 'C') return `<a:cubicBezTo>${P(g.x1, g.y1)}${P(g.x2, g.y2)}${P(g.x, g.y)}</a:cubicBezTo>`
+      return g.c === 'M' ? `<a:moveTo>${P(g.x, g.y)}</a:moveTo>` : `<a:lnTo>${P(g.x, g.y)}</a:lnTo>`
+    }).join('') + (s.closed ? '<a:close/>' : '')
     const geom = `<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="0" t="0" r="${W}" b="${H}"/><a:pathLst><a:path w="${W}" h="${H}"${s.fill || s.grad ? '' : ' fill="none"'}>${cmds}</a:path></a:pathLst></a:custGeom>`
     const lineX = s.line ? lnXml(s.line.color, s.line.w, s.line.dash, s.line.arrow) : '<a:ln><a:noFill/></a:ln>'
     return `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="path"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${EMU(b.x)}" y="${EMU(b.y)}"/><a:ext cx="${W}" cy="${H}"/></a:xfrm>${geom}${paintFill(s.fill, s.grad)}${lineX}</p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:endParaRPr lang="en-US"/></a:p></p:txBody></p:sp>`
