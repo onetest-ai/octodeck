@@ -64,7 +64,8 @@
     "prepack": "npm run vendor"
   },
   "dependencies": {
-    "vite": "^6.0.0"
+    "vite": "^6.0.0",
+    "vite-plugin-singlefile": "^2.3.3"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "*",
