@@ -45,7 +45,7 @@ const pptxVendor = new URL('vendor/pptx/', packageRoot)
 
 await rm(fileURLToPath(pptxVendor), { recursive: true, force: true })
 await mkdir(fileURLToPath(pptxVendor), { recursive: true })
-for (const file of ['color.ts', 'ir.ts', 'ooxml.ts', 'theme.ts', 'extract.ts', 'themes.resolved.json']) {
+for (const file of ['color.ts', 'ir.ts', 'ooxml.ts', 'theme.ts', 'extract.ts', 'walker.ts', 'themes.resolved.json']) {
   await cp(fileURLToPath(new URL(file, pptxSource)), fileURLToPath(new URL(file, pptxVendor)))
 }
 for (const directory of ['fonts', 'backdrops']) {
