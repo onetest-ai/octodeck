@@ -5,10 +5,9 @@
 import { resolveTheme } from './theme.ts'
 import { extractDeck } from './extract.ts'
 import { buildPptx } from './ooxml.ts'
-import { mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from 'fs'
-import { execFileSync } from 'child_process'
-import { dirname } from 'path'
+import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
+import { zipSync } from '../../packages/dsh-deck/src/export/zip.ts'
 
 const args = process.argv.slice(2)
 const flagVal = (f: string) => { const i = args.indexOf(f); return i >= 0 ? args[i + 1] : undefined }
@@ -45,26 +44,10 @@ const fonts = t.font.embed.flatMap((name) => (FONT_VARIANTS[name] ?? []).flatMap
 }))
 const files = buildPptx(slides, t, backdrop, fonts)
 
-const unpacked = 'dist-pptx/unpacked'
-rmSync(unpacked, { recursive: true, force: true })
-for (const [p, content] of Object.entries(files)) {
-  const full = `${unpacked}/${p}`
-  mkdirSync(dirname(full), { recursive: true })
-  writeFileSync(full, content as any) // string XML or Buffer (media)
-}
-
 mkdirSync('dist-pptx', { recursive: true })
 const out = `dist-pptx/${deck}-${themeId}.pptx`
-execFileSync('python3', ['-c', `
-import zipfile, os
-root = '${unpacked}'
-with zipfile.ZipFile('${out}', 'w', zipfile.ZIP_DEFLATED) as z:
-    z.write(os.path.join(root, '[Content_Types].xml'), '[Content_Types].xml')
-    for dp, _, fs in os.walk(root):
-        for f in fs:
-            full = os.path.join(dp, f); arc = os.path.relpath(full, root)
-            if arc != '[Content_Types].xml':
-                z.write(full, arc)
-print('packaged', '${out}')
-`])
+// Packaged in-process by the plugin's ZIP writer: the previous path staged
+// every part to dist-pptx/unpacked and shelled out to python3 to zip it, a
+// dependency a distributable plugin cannot assume.
+writeFileSync(out, zipSync(files as Record<string, string | Uint8Array>))
 console.log(`built ${out} · deck=${deck} · theme=${themeId} · ${slides.length} slides`)
