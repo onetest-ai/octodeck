@@ -30,7 +30,8 @@
     "lib/types/**/*.d.ts",
     "cordis.patch.yml",
     "runtime/**",
-    "vendor/**"
+    "vendor/**",
+    "presets/**"
   ],
   "engines": {
     "node": "^22.19 || >=24"

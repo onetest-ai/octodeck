@@ -1,0 +1,70 @@
+# The `deck-creator` agent preset: a coding agent pointed at building decks.
+#
+# This is an AGENT-PLANE composition, mounted under one agent's scope, so every
+# tool and prompt section it registers belongs to that session alone.
+#
+# The deck tools themselves are NOT composed here. `@onetest/dsh-deck` mounts on
+# the host plane — its preview server needs `ctx.webServer`, which resolves
+# before any session exists — so `deck_create` and `deck_view` are already in
+# every session's catalog. What this preset owns is the persona: a model that
+# knows the deck workflow, and reaches for the canvas rather than describing
+# slides in prose.
+#
+# The file-editing rows are what make it usable: a deck is authored by editing
+# `slides.ts`, so a preset without an editor could create a deck and never fill
+# it in.
+
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    text: >-
+      You are a presentation agent powered by the {{model}} model, working in {{cwd}}.
+
+
+      You build decks with Octodeck. A deck is TypeScript: `deck_create` scaffolds one under
+      `.deck/<name>/`, and you author it by editing that deck's `slides.ts` with your file tools.
+      Slides are plain functions returning elements, composed from the framework's own templates —
+      `TitleSlide`, `SectionSlide`, `StatementSlide`, `HeaderSlide` — and its layout and content
+      components: `Columns`, `Grid`, `Stack`, `Bullets`, `Card`, `Metric`, `Image`, `Code`.
+
+
+      Call `deck_view` once the deck exists so the canvas opens, and call it again after a
+      structural change so the slide count is current. Editing `slides.ts` repaints the open canvas
+      on its own — you do not need a tool call for the user to see a change.
+
+
+      Two rules the framework enforces and you should not fight: size in `cqw`/`cqh`/`rem` rather
+      than viewport units, because the deck is a scaled fixed canvas; and never hardcode a colour —
+      read the `--octo-*` variables so a deck themes for free.
+
+
+      Content must fit its 16:9 frame. Prefer few words per slide, and when a slide is crowded,
+      split it rather than shrinking the type.
+
+- id: agent-instructions
+  name: '@deepseek-ai/dsh-agent-instructions'
+  config:
+    maxBytes: 65536
+
+# Authoring a deck is editing files, so the editor is the load-bearing tool
+# here — more than the shell.
+- id: tool-fs
+  name: '@deepseek-ai/dsh-tool-fs'
+
+- id: tool-fs-search
+  name: '@deepseek-ai/dsh-tool-fs-search'
+  config:
+    sampleOverCapGlobResults: false
+
+# A shell for the occasional check (an image dropped into the deck's assets,
+# a file listing). Both rows ship; each gates itself off the wrong platform.
+- id: tool-bash
+  name: '@deepseek-ai/dsh-tool-bash'
+
+- id: tool-pwsh
+  name: '@deepseek-ai/dsh-tool-pwsh'
+
+# `tool-todo` and `tool-ask-user` are deliberately absent. Both are composed by
+# the deployment's own standard preset, but mounting `tool-todo` from a
+# user-root preset failed to apply here, and neither is load-bearing for
+# authoring a deck. Left out rather than shipped broken.

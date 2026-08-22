@@ -1,0 +1,3 @@
+name: Deck creator
+description: Builds Octodeck presentation decks — creates a deck, authors slides as TypeScript, and keeps the canvas open while it works.
+order: 20
