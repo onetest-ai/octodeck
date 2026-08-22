@@ -14,7 +14,7 @@ Two consequences matter. First, deck authoring gains nothing from the harness �
 
 Ship a `deck` capability for DeepSeek Harness as an independently installable plugin bundle, provided by a packaged Octodeck runtime, and put the rendered deck on a canvas inside the harness web GUI so the user watches the deck take shape while the model writes it.
 
-The model creates a deck, authors slides as ordinary TypeScript files, screenshots its own output to find visual defects, and exports the result — all inside one session. The user sees every change land on the canvas without asking for it, because the deck is served through a Vite dev server whose hot module replacement repaints the canvas on each save.
+The model creates a deck, authors slides as ordinary TypeScript files, screenshots its own output to find visual defects, and exports the result — all inside one session. The user sees every change land on the canvas without asking for it, because the deck is served through a Vite dev server that pushes each save to the browser.
 
 Octodeck is not vendored or replaced. Its framework source ships as a runtime asset of this bundle; upstream stays where it is.
 
@@ -74,7 +74,11 @@ No new session event is introduced. The `deck_view` canonical value carries the 
 
 ## The authoring loop
 
-`deck_create` scaffolds a deck and returns its paths and preview route. The model then edits `slides.ts` with the harness's ordinary file tools, and hot module replacement pushes each save to the canvas.
+`deck_create` scaffolds a deck and returns its paths and preview route. The model then edits `slides.ts` with the harness's ordinary file tools, and the Vite dev server pushes each save to the canvas.
+
+The push is a **full page reload, not an in-place hot module update**. A deck's `slides.ts` is reached through a dynamic `import()` the transform pipeline deliberately does not rewrite, so it never enters Vite's hot-update graph with an accept handler, and Vite's only remaining option is to reload the page. Verified in a real browser: editing `slides.ts` with the deck open logs `[vite] (client) page reload` and the new slides appear without any tool call or user gesture.
+
+The user-visible consequence is that a reload returns the deck to slide 1. Someone reviewing slide 7 when the model edits a slide is bounced to the start. Preserving position would require `runtime/entry.ts` to register `import.meta.hot.accept` for the slides module and re-render in place, restoring the current index; that is deferred, and the HMR socket the reload depends on is itself verified working.
 
 Slides stay plain TypeScript rather than moving behind typed slide tools. This keeps Octodeck's full expressive range, including interactive slides and custom components, adds no schema to every request, and reuses file-editing behavior the model is already good at.
 
@@ -112,7 +116,7 @@ Slides stay plain TypeScript rather than moving behind typed slide tools. This k
 
 - `dsh plugin --profile web add @onetest/dsh-deck` installs the bundle, and the deck tools appear in a session with no further configuration.
 - A session can create a deck, and the deck's files appear under `decks/<name>/` in the session workspace with no dependency install.
-- The web GUI renders that deck as a keyed `tool.call.toolview` row (not the details column — see "The canvas and state ownership" above), and an edit to `slides.ts` repaints the canvas without a tool call or a user gesture.
+- The web GUI renders that deck as a keyed `tool.call.toolview` row (not the details column — see "The canvas and state ownership" above), and an edit to `slides.ts` updates the canvas without a tool call or a user gesture (by page reload, not an in-place hot update — see "The authoring loop").
 - The preview works when the browser reaches the Host over a non-loopback authority, not only on the same machine.
 - Disposing the deck plugin stops the Vite server and removes both its HTTP route and its upgrade route.
 - Replaying a session reconstructs the canvas from the logged tool result, with no new session event type.
@@ -123,7 +127,7 @@ Slides stay plain TypeScript rather than moving behind typed slide tools. This k
 
 - **Installs with no further configuration** — partially met. The bundle-patch/package.json dependency mismatch is fixed (Finding 3a), but the plugin still only runs from within an Octodeck checkout: `octodeck/framework` resolves to a fixed path into this repository's `src/framework`, which an installed tarball never has. That now fails loudly at server start, naming the resolved path, instead of silently resolving wrong (Finding 3b) — publishing or bundling the framework itself remains out of scope.
 - **Deck creation in the workspace** — met, unaffected by this wave.
-- **Canvas renders and HMR repaints without a tool call or gesture** — met only after this wave. Before it, HMR never connected at all (Finding 1: the upgrade route was registered at the base path, not at the path Vite's client actually requests) and the canvas's iframe hash never matched the framework's own router format (Finding 2), so even a connected HMR socket would have repainted a deck stuck on slide 1. Both are fixed and covered by tests, including a real `vite-hmr` WebSocket opened through the mounted route.
+- **Canvas renders and updates without a tool call or gesture** — met only after this wave, and by page reload rather than in-place hot update (see "The authoring loop"). Before it, HMR never connected at all (Finding 1: the upgrade route was registered at the base path, not at the path Vite's client actually requests) and the canvas's iframe hash never matched the framework's own router format (Finding 2), so even a connected HMR socket would have updated a deck stuck on slide 1. Both are fixed and covered by tests, including a real `vite-hmr` WebSocket opened through the mounted route.
 - **Works over a non-loopback authority** — not independently re-verified live in this wave. Finding 4's fix (narrowing `fs.allow` to `decks/`) removes an unrelated live-verified hole this criterion would otherwise fail on: the entire session workspace was previously readable over `/deck/@fs/...` from any reachable browser.
 - **Disposing stops the server and removes both routes** — met, and safer: `close()` rejecting no longer crashes the whole harness process (Finding 5), and the route-removal/server-stop behavior is exercised by "sequences disposal after an in-flight start" rather than the deleted title-only test (Finding 6).
 - **Replays from the logged tool result** — met, unaffected by this wave.
