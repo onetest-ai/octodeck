@@ -1,5 +1,24 @@
 import type { DeckViewData } from './deck-view.ts'
 
+/**
+ * The six themes the framework ships, in the order the switcher lists them.
+ *
+ * Hand-listed rather than imported from `octodeck/themes`: this is the browser
+ * bundle, and pulling the registry in would drag all six theme modules into a
+ * client artifact that only needs their names.
+ */
+export const THEME_IDS = ['midnight', 'protocol', 'primer', 'radiant', 'commit', 'octo-glass'] as const
+
+/** Light or dark, as the framework's theme contract defines them. */
+export type CanvasMode = 'light' | 'dark'
+
+/** An export in flight: which format, and how far through the deck it is. */
+export interface ExportStatus {
+  readonly format: string
+  readonly done: number
+  readonly total: number
+}
+
 /** Where the canvas sits and how big it is, in viewport pixels. */
 export interface CanvasGeometry {
   x: number
@@ -27,15 +46,37 @@ export interface CanvasState {
   open: boolean
   /** Position and size, carried across decks and turns. */
   geometry: CanvasGeometry
+  /**
+   * The theme the reader picked, or null to show the deck's authored one.
+   *
+   * Preview-only: this never writes `deck.json`, so a casual click cannot
+   * silently rewrite what the agent authored. Exports follow this value, so a
+   * reader can compare all six and export the one they chose.
+   */
+  theme: string | null
+  /** Light or dark, applied on top of whichever theme is showing. */
+  mode: CanvasMode
+  /** The export in flight, or null when none is running. */
+  exportStatus: ExportStatus | null
+  /** The last export failure, shown until the next attempt starts. */
+  exportError: string | null
 }
 
-/** Smallest useful canvas: below this the 16:9 frame stops being readable. */
-export const MIN_WIDTH = 320
+/**
+ * Smallest useful canvas: below this the 16:9 frame stops being readable.
+ *
+ * Raised from 320 when the header gained a theme switcher and an export menu.
+ * 320 was already marginal for a readable frame and cannot hold five controls.
+ */
+export const MIN_WIDTH = 420
 export const MIN_HEIGHT = 220
 
 /** The canvas before anything has been opened: nothing shown, nothing floating. */
 export function initialCanvas(): CanvasState {
-  return { view: null, open: false, geometry: { x: 0, y: 0, width: 0, height: 0 } }
+  return {
+    view: null, open: false, geometry: { x: 0, y: 0, width: 0, height: 0 },
+    theme: null, mode: 'dark', exportStatus: null, exportError: null,
+  }
 }
 
 /**

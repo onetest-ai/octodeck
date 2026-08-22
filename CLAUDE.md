@@ -50,9 +50,12 @@ scripts/         new-deck.mjs, export-pdf.ts, inline-single.mjs, extract-theme.t
 skills/octodeck-presentations/   the distributable SKILL (methodology + QA refs +
                  scripts + assets/template = a generated, self-contained Octodeck project)
 packages/dsh-deck/  @onetest/dsh-deck — the DeepSeek Harness plugin: deck tools, a
-                 middleware-mode Vite preview server, the floating canvas, and the
+                 middleware-mode Vite preview server, the floating canvas (theme
+                 switcher + HTML/PDF/PPTX export buttons), the export route, and the
                  Deck creator agent preset. `npm run build` there vendors src/framework
                  and src/themes into the package so a published copy is self-contained.
+                 Export launches no browser: the canvas measures the deck in a hidden
+                 same-origin iframe and Node assembles the file.
 ```
 
 ## Conventions (get these right)

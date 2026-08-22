@@ -1,5 +1,5 @@
 import { deck } from 'octodeck/framework'
-import { getTheme } from 'octodeck/themes'
+import { themeList } from 'octodeck/themes'
 
 const name = window.location.pathname.split('/').filter(Boolean).at(-1) ?? ''
 // Vite serves this module under the dev server's configured `base`
@@ -35,6 +35,14 @@ deck(slides, {
   mount: '#deck',
   hashRouting: true,
   showProgress: true,
-  themes: [getTheme(meta.theme)],
+  // All six are registered, not just the authored one, so the canvas header
+  // can switch between them. This costs nothing: a theme's CSS is loaded
+  // lazily on first use (`load: () => import(...)` in src/themes/index.ts),
+  // so an unselected theme never fetches its stylesheet or its fonts.
+  //
+  // `deck.ts` reads `?theme=` and `?mode=` from the URL at startup and
+  // prefers them over these defaults, which is how both the canvas switcher
+  // and the export extractor select one without a message channel.
+  themes: themeList,
   theme: meta.theme,
 }).start()

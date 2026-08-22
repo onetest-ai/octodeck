@@ -1,6 +1,10 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool, type ToolDefinition } from '@deepseek-ai/dsh-tools'
 import { THEMES } from './definition.ts'
+import { exportHtml } from './export/html.ts'
+import { exportPdf } from './export/pdf/index.ts'
+import { exportPptx } from './export/pptx.ts'
+import { mountExportRoute } from './host/export-route.ts'
 import { mountPreviewRoute, type PreviewHostContext } from './host/preview-route.ts'
 import { createDeck, viewDeck } from './tools/deck-create.ts'
 import type { PreviewOptions } from './tools/deck-create.ts'
@@ -62,6 +66,18 @@ export function apply(ctx: Context & PreviewHostContext, config: Config): void {
   // selected workspace from the session header; see `workspaceFor`.
   const workspace = process.cwd()
   mountPreviewRoute(ctx, { workspace, base: config.base })
+  // Export sits at its own longest-prefix route under the same base. The `@`
+  // is load bearing: `export` is a legal deck name, so a bare `export`
+  // segment would shadow a real deck.
+  //
+  // PPTX and PDF receive raw walker items measured by the canvas: the server
+  // has no renderer of its own, which is also why export cannot be a
+  // model-callable tool.
+  mountExportRoute(ctx, { base: config.base }, {
+    html: exportHtml,
+    pptx: exportPptx,
+    pdf: exportPdf,
+  })
   const options = { workspace, base: config.base }
 
   ctx.tools.register(defineTool({

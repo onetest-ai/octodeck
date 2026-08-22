@@ -10,7 +10,10 @@ packages/*/lib/
 .vite/
 
 # regenerable caches (baked via `npm run pptx:bake`)
-scripts/pptx/backdrops/
+# scripts/pptx/backdrops/ is deliberately NOT ignored: baking a backdrop
+# needs a browser, and the dsh-deck plugin vendors these PNGs so exporting
+# a deck from the harness never has to launch one. They are per-theme and
+# deck-independent, so they change only when a theme's gradient changes.
 
 # secrets / local config — DO NOT COMMIT
 .mcp.json

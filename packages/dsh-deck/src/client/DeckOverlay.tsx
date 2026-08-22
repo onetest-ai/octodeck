@@ -1,6 +1,10 @@
-import { useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
-import type { CanvasGeometry, CanvasState } from './canvas-state.ts'
-import { TITLE_BAR } from './canvas-state.ts'
+import { useState, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
+import type { CanvasGeometry, CanvasMode, CanvasState } from './canvas-state.ts'
+import { THEME_IDS, TITLE_BAR } from './canvas-state.ts'
+
+/** The formats the header offers, in the order the menu lists them. */
+export const EXPORT_FORMATS = ['html', 'pdf', 'pptx'] as const
+export type ExportFormat = (typeof EXPORT_FORMATS)[number]
 
 /**
  * Props: the canvas fact bound from the injected `hooks` compartment, plus the
@@ -10,6 +14,9 @@ export interface DeckOverlayProps {
   readonly useDeckCanvas: <S>(select: (state: CanvasState) => S, equal?: (a: S, b: S) => boolean) => S
   readonly close: () => void
   readonly place: (geometry: CanvasGeometry) => void
+  readonly setTheme: (theme: string) => void
+  readonly setMode: (mode: CanvasMode) => void
+  readonly startExport: (format: ExportFormat) => void
 }
 
 /**
@@ -35,10 +42,15 @@ export interface DeckOverlayProps {
  * @param props - the canvas fact and its callbacks.
  * @returns the floating canvas, or null while closed.
  */
-export function DeckOverlay({ useDeckCanvas, close, place }: DeckOverlayProps) {
+export function DeckOverlay({ useDeckCanvas, close, place, setTheme, setMode, startExport }: DeckOverlayProps) {
   const view = useDeckCanvas(state => state.view)
   const open = useDeckCanvas(state => state.open)
   const geometry = useDeckCanvas(state => state.geometry)
+  const theme = useDeckCanvas(state => state.theme)
+  const mode = useDeckCanvas(state => state.mode)
+  const exportStatus = useDeckCanvas(state => state.exportStatus)
+  const exportError = useDeckCanvas(state => state.exportError)
+  const [menuOpen, setMenuOpen] = useState(false)
   const drag = useRef<{ pointer: number, from: CanvasGeometry, x: number, y: number, mode: 'move' | 'size' } | null>(null)
 
   const start = (mode: 'move' | 'size') => (event: ReactPointerEvent<HTMLElement>) => {
@@ -60,6 +72,12 @@ export function DeckOverlay({ useDeckCanvas, close, place }: DeckOverlayProps) {
   }
 
   if (!open || view === null) return null
+  const shown = theme ?? view.theme
+  // The deck reads `?theme=` and `?mode=` at startup (src/framework/deck.ts),
+  // so changing them re-renders the frame in the chosen theme — no message
+  // channel between the canvas and the deck, and the same mechanism the
+  // export extractor uses.
+  const frameSrc = `${view.route}?theme=${encodeURIComponent(shown)}&mode=${mode}`
   return (
     <div style={{ ...PANEL, left: geometry.x, top: geometry.y, width: geometry.width, height: geometry.height }} role="dialog" aria-label={`Deck ${view.deckId}`}>
       <div
@@ -70,10 +88,65 @@ export function DeckOverlay({ useDeckCanvas, close, place }: DeckOverlayProps) {
         onPointerCancel={end}
       >
         <span style={TITLE}>{view.deckId}</span>
-        <a style={BUTTON} href={view.route} target="_blank" rel="noreferrer" onPointerDown={stopDrag}>Open in tab</a>
+        <select
+          style={SELECT}
+          aria-label="Theme"
+          value={shown}
+          onPointerDown={stopDrag}
+          onChange={(event) => { setTheme(event.target.value) }}
+        >
+          {THEME_IDS.map(id => <option key={id} value={id}>{id}</option>)}
+        </select>
+        <button
+          type="button"
+          style={BUTTON}
+          aria-label="Toggle light or dark"
+          onPointerDown={stopDrag}
+          onClick={() => { setMode(mode === 'dark' ? 'light' : 'dark') }}
+        >
+          {mode === 'dark' ? 'Dark' : 'Light'}
+        </button>
+        {exportStatus !== null
+          ? (
+            <span style={PROGRESS}>
+              {exportStatus.format.toUpperCase()} · {exportStatus.done} / {exportStatus.total}
+            </span>
+          )
+          : (
+            <span style={MENU_ANCHOR}>
+              <button
+                type="button"
+                style={BUTTON}
+                aria-label="Export"
+                aria-expanded={menuOpen}
+                onPointerDown={stopDrag}
+                onClick={() => { setMenuOpen(open => !open) }}
+              >
+                Export
+              </button>
+              {menuOpen && (
+                <span style={MENU} role="menu">
+                  {EXPORT_FORMATS.map(format => (
+                    <button
+                      key={format}
+                      type="button"
+                      role="menuitem"
+                      style={MENU_ITEM}
+                      onPointerDown={stopDrag}
+                      onClick={() => { setMenuOpen(false); startExport(format) }}
+                    >
+                      {format.toUpperCase()}
+                    </button>
+                  ))}
+                </span>
+              )}
+            </span>
+          )}
+        <a style={BUTTON} href={frameSrc} target="_blank" rel="noreferrer" onPointerDown={stopDrag}>Open in tab</a>
         <button type="button" style={BUTTON} aria-label="Close canvas" onPointerDown={stopDrag} onClick={close}>Close</button>
       </div>
-      <iframe title={view.deckId} src={view.route} style={FRAME} />
+      <iframe title={view.deckId} src={frameSrc} style={FRAME} />
+      {exportError !== null && <div style={ERROR} role="alert">{exportError}</div>}
       <div
         style={GRIP}
         role="separator"
@@ -129,7 +202,66 @@ const BAR: CSSProperties = {
   userSelect: 'none',
 }
 
-const TITLE: CSSProperties = { flex: 1, color: 'var(--dsw-color-text-primary, #e6e9ef)', fontWeight: 500 }
+/** Truncates rather than pushing the controls out of a narrow canvas. */
+const TITLE: CSSProperties = {
+  flex: 1,
+  minWidth: 0,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+  color: 'var(--dsw-color-text-primary, #e6e9ef)',
+  fontWeight: 500,
+}
+
+const SELECT: CSSProperties = {
+  background: 'var(--dsw-color-bg-elevated, #14161a)',
+  border: '1px solid var(--dsw-color-border, #2a2e35)',
+  borderRadius: 6,
+  color: 'inherit',
+  cursor: 'pointer',
+  font: 'inherit',
+  padding: '2px 4px',
+  maxWidth: 110,
+}
+
+const PROGRESS: CSSProperties = { fontVariantNumeric: 'tabular-nums', opacity: 0.85 }
+
+/** Positions the dropdown against the Export button rather than the bar. */
+const MENU_ANCHOR: CSSProperties = { position: 'relative', display: 'inline-flex' }
+
+const MENU: CSSProperties = {
+  position: 'absolute',
+  top: '100%',
+  right: 0,
+  marginTop: 4,
+  zIndex: 1,
+  display: 'flex',
+  flexDirection: 'column',
+  minWidth: 90,
+  background: 'var(--dsw-color-bg-elevated, #14161a)',
+  border: '1px solid var(--dsw-color-border, #2a2e35)',
+  borderRadius: 6,
+  overflow: 'hidden',
+  boxShadow: '0 8px 24px rgb(0 0 0 / 35%)',
+}
+
+const MENU_ITEM: CSSProperties = {
+  background: 'transparent',
+  border: 0,
+  color: 'inherit',
+  cursor: 'pointer',
+  font: 'inherit',
+  padding: '6px 12px',
+  textAlign: 'left',
+}
+
+/** A failed export says why, beneath the deck, until the next attempt. */
+const ERROR: CSSProperties = {
+  padding: '6px 12px',
+  fontSize: 12,
+  color: 'var(--dsw-color-text-danger, #f87171)',
+  borderTop: '1px solid var(--dsw-color-border, #2a2e35)',
+}
 
 const BUTTON: CSSProperties = {
   background: 'transparent',

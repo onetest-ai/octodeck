@@ -2,6 +2,11 @@
 // 1280×720 canvas; the OOXML backend converts px→EMU. Colours are resolved Paint
 // (hex+alpha) — the theme adapter does that resolution upstream.
 import type { Paint, ResolvedTheme } from './theme.ts'
+
+// Re-exported because this module's own exported shapes (Rect, Line, Run, ...)
+// are typed in terms of it, so a consumer importing them cannot name the type
+// without it.
+export type { Paint } from './theme.ts'
 import { parseColor, toHex, alphaVal, mixOklab } from './color.ts'
 
 export interface Run { text: string; font: string; sizePt: number; color: Paint; bold?: boolean; italic?: boolean; spacingPt?: number }
