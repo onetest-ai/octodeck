@@ -47,11 +47,21 @@ The capability seam's three roles — Service Definition, Service Provider, Cons
 
 `@deepseek-ai/cordis` is a peer dependency of every plugin package here, matching the harness convention.
 
+## The canvas surface
+
+The deck renders on one floating canvas registered into `shell.overlay` — the root-scoped list slot the shell documents as the seat for "a surface of your own that floats over the whole app". Each `deck_view` call leaves a one-line row in the transcript that points the canvas at its deck.
+
+The alternative, and the shape this started as, was a live frame per call. A conversation that opens several decks then accumulates a column of stale iframes, each one a running document the browser keeps alive, and the deck the user actually wants scrolls away. Root scope means one canvas exists and retargets instead.
+
+The two registrations cannot share a declared slot store: the transcript row registers into a session-scoped slot and the canvas into a root-scoped one, and a store handle belongs to exactly one scope — mounting one handle in both fails plugin load with "one handle, one scope". They close over a plugin-owned controller injected through the reserved `hooks` compartment, which is the documented channel for a registrant's own reactive fact and belongs to neither scope.
+
 ## Deck layout
 
-A deck occupies `decks/<name>/` inside the session workspace and holds only its own material: `slides.ts`, `deck.css`, `assets/`, and a `deck.json` recording title and theme.
+A deck occupies `.deck/<name>/` inside the workspace the session selected — read from the session header per call, the way the harness's own bash tool resolves its workdir, so one Host serves sessions rooted in different directories and holds only its own material: `slides.ts`, `deck.css`, `assets/`, and a `deck.json` recording title and theme.
 
-The framework, the Vite configuration, and `node_modules` never enter the user's workspace. Vite's root is the packaged runtime, with the workspace deck directory supplied through an alias. This removes the dependency install a scaffolded standalone project would need, makes the first preview immediate, and lets a framework fix ship with the plugin instead of stranding every previously scaffolded copy.
+The framework, the Vite configuration, and `node_modules` never enter the user's workspace. Vite's root is the packaged runtime, and a deck is addressed by a key carrying its absolute directory. A static alias could only ever reach the one workspace the server was mounted with, which is why a deck created inside a session rendered blank; encoding the location rather than registering it also keeps the server stateless, so a key minted before a restart still resolves and a replayed session's logged route still addresses the same deck.
+
+The preview server resolves and loads deck files itself rather than letting Vite serve them from disk. Vite applies `fs.allow` to any path it serves, and no workspace is on that list — deliberately, so the preview cannot be walked out into a user's project. Containment is the rule that a decoded key must name a single deck-name segment directly inside a `.deck` folder, and nothing else. This removes the dependency install a scaffolded standalone project would need, makes the first preview immediate, and lets a framework fix ship with the plugin instead of stranding every previously scaffolded copy.
 
 The deck directory is correspondingly not runnable on its own outside the harness. Exporting a self-contained HTML file is the portability answer, and it is in scope.
 

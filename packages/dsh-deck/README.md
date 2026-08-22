@@ -6,7 +6,7 @@ One package carries both halves. Its node half mounts the deck capability, a Vit
 
 ## Status
 
-This is a **walking skeleton**, developed against DeepSeek Harness `0.1.1-rc.2`. The deck pipeline works end to end and is verified in a real browser. Installing it into a `dsh` profile does **not** work yet — see [Known limitations](#known-limitations) for the exact blockers.
+Developed against DeepSeek Harness `0.1.1-rc.2`, and verified end to end in a real harness: installed into a profile, mounted by the loader, driven by a local model through Ollama, and rendering its deck on the canvas.
 
 ## Requirements
 
@@ -21,9 +21,23 @@ npm run build  --workspace @onetest/dsh-deck   # node half  -> lib/index.js, lib
 npm run bundle --workspace @onetest/dsh-deck   # browser half -> lib/client.js
 ```
 
+## Install into a harness
+
+```bash
+npm run build  --workspace @onetest/dsh-deck   # node half + vendored framework
+npm run bundle --workspace @onetest/dsh-deck   # browser half
+
+dsh plugin --profile web add file:/path/to/octodeck/packages/dsh-deck
+# append "@onetest/dsh-deck" to dsh.profile.bundles in $DSH_HOME/profiles/web/package.json
+cp -r packages/dsh-deck/presets/deck-creator "$DSH_HOME/.agent-presets/"
+dsh --profile web
+```
+
+Pick **Deck creator** in the agent-preset selector, then ask for a deck. The deck lands in the session's selected workspace under `.deck/<name>/`, and a compact row in the transcript opens it on the canvas.
+
 ## Run the preview server directly
 
-This is the supported path today, and the one verified end to end. It boots the real plugin code — the same `mountPreviewRoute` a harness would call — against an HTTP server whose upgrade dispatch matches the harness contract.
+Useful for working on the plugin itself without a harness. It boots the real plugin code — the same `mountPreviewRoute` a harness would call — against an HTTP server whose upgrade dispatch matches the harness contract.
 
 ```js
 import { createServer } from 'node:http'
@@ -63,18 +77,20 @@ server.on('upgrade', (req, socket, head) => {
 server.listen(4599)
 ```
 
-Open `http://127.0.0.1:4599/deck/launch/`. Edit `decks/launch/slides.ts` and the browser updates without any tool call.
+`deck_create`'s returned `route` is the URL to open. Edit the deck's `slides.ts` and the browser updates without any tool call.
 
 ## What a deck looks like
 
 `deck_create` writes only deck-owned files into the workspace — the framework, the Vite config, and `node_modules` stay inside the plugin:
 
 ```
-<workspace>/decks/<name>/
+<selected workspace>/.deck/<name>/
   deck.json     title and theme
   slides.ts     the deck; edit this
   deck.css      deck-local styles
 ```
+
+The workspace is the one the session selected, read from its session header per call — so one Host serves sessions rooted in different directories.
 
 Slides are plain TypeScript, so the full framework is available:
 
@@ -110,21 +126,13 @@ The bundle's cordis patch sets one field, validated at load — a malformed valu
 
 ## Known limitations
 
-**It installs and composes, but an installed copy cannot serve.** Verified directly against a real harness:
+**Registering the bundle is a manual step.** `dsh plugin --profile web add` installs the package but does not add it to the profile's bundle list; append `"@onetest/dsh-deck"` to `dsh.profile.bundles` in `$DSH_HOME/profiles/web/package.json` yourself.
 
-```bash
-dsh plugin --profile web add file:/path/to/octodeck/packages/dsh-deck
-# then add "@onetest/dsh-deck" to dsh.profile.bundles in the profile's package.json
-dsh --profile web
-```
+**The preset is copied, not registered.** `presets/deck-creator/` ships in the package; copy it to `$DSH_HOME/.agent-presets/` to make it appear in the preset picker. A plugin cannot add a preset root without restating the `agent-presets` row's whole config, which would fight the deployment's own shipped root.
 
-The install succeeds, `dsh --profile web --dump-config` shows the `deck` row composed with its config, and the harness boots. What fails is serving: package managers copy a `file:` dependency into the profile rather than symlinking it, so the installed copy computes the framework path relative to the profile directory (`<profile>/node_modules/src/framework`), which does not exist. The loud framework check fires and the preview never mounts — the deck route returns 404.
-
-Until the framework is shipped with the package or declared as a dependency, run the preview server directly from this repository, as above.
+**`tool-todo` is absent from the preset.** Mounting it from a user-root preset failed to apply, and it is not load-bearing for authoring a deck, so it was left out rather than shipped broken.
 
 **Updates are a page reload, not an in-place hot update.** A deck's `slides.ts` is reached through a dynamic `import()` the transform pipeline does not rewrite, so it never enters Vite's hot-update graph and Vite reloads the page instead. The deck updates, but returns to slide 1 each time.
-
-**The workspace is the Host process's working directory.** Decks are created relative to wherever `dsh` was started, not per session. A Host serving sessions with different working directories would put every deck in the same place.
 
 **A `dsh plugin add` install must be run from a directory whose parent chain reaches this repository**, for the same framework-path reason.
 
