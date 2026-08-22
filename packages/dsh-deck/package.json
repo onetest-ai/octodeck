@@ -58,7 +58,7 @@
     "build": "npm run vendor && tsc -p tsconfig.json",
     "bundle": "tsdown",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json",
-    "pretest": "tsdown",
+    "pretest": "npm run vendor && tsdown",
     "test": "vitest run",
     "vendor": "node scripts/vendor-framework.mjs",
     "prepack": "npm run vendor"
