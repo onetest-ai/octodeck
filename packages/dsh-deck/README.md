@@ -176,9 +176,7 @@ The bundle's cordis patch sets one field, validated at load — a malformed valu
 
 **PDF connector arrowheads are not drawn.** Diagram nodes, connectors, and labels all export; the small arrow markers on connector ends do not.
 
-**A deck's URL segment is its key, not its name.** The route `deck_view` returns is `{base}/<deckKey>/`. Visiting `{base}/<name>/` is accepted as a page request and renders a **blank deck** with a 404 in the console, because the runtime builds its module path from that segment. Use the route the tool returns.
-
-**`dsh plugin add` exits nonzero on a clean install.** pnpm declines to run `esbuild`'s build script (`ERR_PNPM_IGNORED_BUILDS`, pulled in through `vite`) and the CLI reports `pnpm failed in profile directory`. The install is fine on macOS arm64 — esbuild's prebuilt binary ships in its platform package — so the plugin works; only the exit code is misleading.
+**`dsh plugin add` exits nonzero on a clean install.** pnpm declines to run `esbuild`'s build script (`ERR_PNPM_IGNORED_BUILDS`, pulled in through `vite`) and the CLI reports `pnpm failed in profile directory`. The install is fine — esbuild's prebuilt binary ships in its platform package — so the plugin works; only the exit code is misleading. Nothing in this package can suppress it: `pnpm.onlyBuiltDependencies` is declared by the consuming project, and the profile's `package.json` belongs to the harness.
 
 **Not built yet:** headless slide capture. The design covers it as a later phase.
 
