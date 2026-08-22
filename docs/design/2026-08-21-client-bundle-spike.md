@@ -20,7 +20,7 @@ npm run bundle --workspace @onetest/dsh-deck-canvas
 pnpm install
 pnpm dsh --profile web --help                       # initializes the profile
 pnpm dsh plugin --profile web add \
-  file:/Users/arozumenko/Development/octodeck/packages/dsh-deck-canvas
+  file:<octodeck>/packages/dsh-deck-canvas
 # hand-edited $DSH_HOME/profiles/web/cordis.patch.yml to insert the plugin row
 # (the package declares dsh.client, not dsh.bundle, so `plugin add` installs
 # it as a plain dependency and warns; mounting it as a tree entry needs an

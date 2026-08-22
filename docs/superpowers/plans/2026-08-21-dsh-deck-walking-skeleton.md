@@ -21,7 +21,7 @@
 - No hardcoded deployment tunables in plugin bodies — ports, roots, and limits are validated `Config` fields.
 - The client bundle artifact contract (Task 1 proves it) is: `format: 'cjs'`, `platform: 'browser'`, output file exactly `lib/client.js`, banner `window.__ModuleLoader__.load({ id: "<package name>", factory: (require) => {`, footer `return module.exports; } });`, intro `var module = { exports: {} }; var exports = module.exports;`.
 - Baseline module-table externals that a client bundle must NOT inline: `react`, `react/jsx-runtime`, `react-dom`, `react-dom/client`, `@deepseek-ai/cordis`, `@deepseek-ai/dsh-client-ui-slots`, `@deepseek-ai/dsh-client-ui-primitives`, `@deepseek-ai/dsh-client-runtime/client`. Everything else must be inlined.
-- The harness under test is the local checkout at `/Users/arozumenko/Development/deepseek-harness`. Treat its APIs as a moving target and pin a supported range in `@onetest/dsh-deck`'s README before publishing.
+- The harness under test is the local checkout at `<deepseek-harness>`. Treat its APIs as a moving target and pin a supported range in `@onetest/dsh-deck`'s README before publishing.
 
 ## File Structure
 
