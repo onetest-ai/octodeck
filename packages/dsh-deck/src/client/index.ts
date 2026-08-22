@@ -55,6 +55,6 @@ export function apply(ctx: Context): void {
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay',
     id: 'deck-canvas',
-    inject: () => ({ hooks: { deckCanvas: canvas.store }, close: canvas.close, setSlide: canvas.setSlide }),
+    inject: () => ({ hooks: { deckCanvas: canvas.store }, close: canvas.close, place: canvas.place }),
   }, DeckOverlay))
 }

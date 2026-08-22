@@ -1,5 +1,8 @@
-import { closeCanvas, initialCanvas, selectSlide, showDeck, type CanvasState } from './canvas-state.ts'
-import type { DeckViewData } from './DeckCanvas.tsx'
+import {
+  closeCanvas, defaultGeometry, initialCanvas, placeCanvas, showDeck,
+  type CanvasGeometry, type CanvasState,
+} from './canvas-state.ts'
+import type { DeckViewData } from './deck-view.ts'
 
 /** A bare observable the renderer can bind to a `use<Name>` hook. */
 export interface CanvasSource {
@@ -12,8 +15,13 @@ export interface CanvasController {
   readonly store: CanvasSource
   show: (view: DeckViewData) => void
   close: () => void
-  setSlide: (slide: number) => void
+  place: (geometry: CanvasGeometry) => void
 }
+
+/** The viewport the canvas is clamped against; injected so the logic stays testable. */
+export type ViewportReader = () => { width: number, height: number }
+
+const browserViewport: ViewportReader = () => ({ width: window.innerWidth, height: window.innerHeight })
 
 /**
  * Own the canvas surface's state for the lifetime of the plugin.
@@ -27,11 +35,11 @@ export interface CanvasController {
  * neither.
  *
  * Snapshots are immutable and replaced on write, so the identity stays stable
- * between changes — which is what the renderer's subscription requires to
- * avoid re-rendering on every read.
+ * between changes — which is what the renderer's subscription requires.
+ * @param viewport - reads the current viewport; defaults to the browser window.
  * @returns the controller shared by both registrations.
  */
-export function createCanvasController(): CanvasController {
+export function createCanvasController(viewport: ViewportReader = browserViewport): CanvasController {
   let state = initialCanvas()
   const listeners = new Set<() => void>()
   const commit = (mutate: (draft: CanvasState) => void): void => {
@@ -45,8 +53,15 @@ export function createCanvasController(): CanvasController {
       subscribe: (listener) => { listeners.add(listener); return () => { listeners.delete(listener) } },
       getSnapshot: () => state,
     },
-    show: (view) => { commit(draft => { showDeck(draft, view) }) },
+    show: (view) => {
+      commit((draft) => {
+        showDeck(draft, view)
+        // First open places the canvas; later opens leave the reader's own
+        // position alone.
+        if (draft.geometry.width === 0) placeCanvas(draft, defaultGeometry(viewport()), viewport())
+      })
+    },
     close: () => { commit(closeCanvas) },
-    setSlide: (slide) => { commit(draft => { selectSlide(draft, slide) }) },
+    place: (geometry) => { commit((draft) => { placeCanvas(draft, geometry, viewport()) }) },
   }
 }

@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
-import { asDeckView, type DeckToolviewProps } from './DeckToolview.tsx'
-import type { DeckViewData } from './DeckCanvas.tsx'
+import { asDeckView, type DeckToolviewProps } from './deck-toolview.ts'
+import type { DeckViewData } from './deck-view.ts'
 
 /** Props: the tool block this row describes, plus the canvas write set. */
 export type DeckRowProps = DeckToolviewProps & {

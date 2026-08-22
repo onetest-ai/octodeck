@@ -41,11 +41,18 @@
  * `'deck_view'`, not `conversation.details.tool` — the documented fallback
  * named in this task's brief.
  */
-import { useState } from 'react'
 import type { ToolCallBlock } from '@deepseek-ai/dsh-client-runtime/client'
-import { DeckCanvas, type DeckViewData } from './DeckCanvas.tsx'
+import type { DeckViewData } from './deck-view.ts'
 
-/** Narrow a logged tool-result value to the fields the canvas renders. */
+/**
+ * Narrow a logged tool-result value to the fields the canvas renders.
+ *
+ * The value crosses from a persisted tool result, so it is validated rather
+ * than asserted: another tool's result reaching this renderer must produce
+ * nothing, not an empty frame.
+ * @param value - the settled block's projected `meta`.
+ * @returns the deck value, or null when the shape is not one.
+ */
 export function asDeckView(value: unknown): DeckViewData | null {
   if (typeof value !== 'object' || value === null) return null
   const { deckId, route, slideCount, theme } = value as Record<string, unknown>
@@ -54,20 +61,7 @@ export function asDeckView(value: unknown): DeckViewData | null {
   return { deckId, route, slideCount, theme }
 }
 
-/** Props: the one field this container reads off `tool.call.toolview`'s owner share. */
+/** Props: the one field the row reads off `tool.call.toolview`'s owner share. */
 export interface DeckToolviewProps {
   readonly block: ToolCallBlock
-}
-
-/**
- * The `deck_view` keyed toolview: renders nothing for a still-running call
- * (no settled `meta` yet) or for a value that fails `asDeckView`'s narrowing,
- * and the canvas once the call has settled with a recognizable `DeckView`.
- */
-export function DeckToolview({ block }: DeckToolviewProps) {
-  const [slide, setSlide] = useState(1)
-  if (!('kind' in block)) return null
-  const view = asDeckView(block.meta)
-  if (view === null) return null
-  return <DeckCanvas view={view} slide={slide} onSlide={setSlide} />
 }

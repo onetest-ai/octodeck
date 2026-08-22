@@ -1,19 +1,20 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import '@testing-library/jest-dom/vitest'
-import { asDeckView, DeckToolview } from '../src/client/DeckToolview.tsx'
-
-const deckView = { deckId: 'launch', route: '/deck/launch/', slideCount: 4, theme: 'midnight' }
+import { asDeckView } from '../src/client/deck-toolview.ts'
+import { DeckRow } from '../src/client/DeckRow.tsx'
 
 afterEach(cleanup)
 
+const value = { deckId: 'launch', route: '/deck/abc/', slideCount: 3, theme: 'midnight' }
+
 describe('asDeckView', () => {
   it('accepts a deck_view canonical value', () => {
-    expect(asDeckView(deckView)).toEqual(deckView)
+    expect(asDeckView(value)).toEqual(value)
   })
 
-  it('rejects another tool\'s result rather than rendering an empty frame', () => {
+  it("rejects another tool's result rather than rendering an empty frame", () => {
     expect(asDeckView({ stdout: 'ok', exitCode: 0 })).toBeNull()
   })
 
@@ -22,63 +23,23 @@ describe('asDeckView', () => {
   })
 })
 
-describe('DeckToolview', () => {
-  it('renders the canvas once the call settles with meta carrying the deck_view value', () => {
-    const block = {
-      kind: 'tool-result' as const,
-      seq: 1,
-      time: 0,
-      callId: 'call-1',
-      call: { name: 'deck_view', argsRaw: '{"name":"launch"}' },
-      callTime: 0,
-      content: [],
-      isError: false,
-      meta: deckView,
-      callView: null,
-      resultView: null,
-      subCalls: [],
-    }
-    render(<DeckToolview block={block} />)
-    // Octodeck's hash router (src/framework/deck.ts) parses only
-    // `/^#\/(\d+)$/`; asserting that shape here (not the bare `#1` the
-    // component previously emitted) is what would have caught Finding 2 —
-    // the prior assertion matched the component's own output instead of the
-    // framework format it has to interoperate with.
-    const src = screen.getByTitle('launch').getAttribute('src')
-    expect(src).toMatch(/^\/deck\/launch\/#\/\d+$/)
-    expect(src).toBe('/deck/launch/#/1')
+describe('DeckRow', () => {
+  it('summarises the deck and offers the canvas', () => {
+    render(<DeckRow block={{ kind: 'result', meta: value } as never} showDeck={() => {}} />)
+    expect(screen.getByText('launch')).toBeInTheDocument()
+    expect(screen.getByText(/3 slides · midnight/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open canvas' })).toBeInTheDocument()
+  })
+
+  it('points the canvas at its own deck when opened', () => {
+    const showDeck = vi.fn()
+    render(<DeckRow block={{ kind: 'result', meta: value } as never} showDeck={showDeck} />)
+    screen.getByRole('button', { name: 'Open canvas' }).click()
+    expect(showDeck).toHaveBeenCalledWith(value)
   })
 
   it('renders nothing for a still-running call', () => {
-    const block = {
-      callId: 'call-1',
-      name: 'deck_view',
-      argsRaw: '{"name":"launch"}',
-      turn: 0,
-      step: 0,
-      time: 0,
-      callView: null,
-      subCalls: [],
-    }
-    const { container } = render(<DeckToolview block={block} />)
-    expect(container).toBeEmptyDOMElement()
-  })
-
-  it('renders nothing when the settled result carries no recognizable deck_view meta', () => {
-    const block = {
-      kind: 'tool-result' as const,
-      seq: 1,
-      time: 0,
-      callId: 'call-1',
-      call: { name: 'bash', argsRaw: '{}' },
-      callTime: 0,
-      content: [],
-      isError: false,
-      callView: null,
-      resultView: null,
-      subCalls: [],
-    }
-    const { container } = render(<DeckToolview block={block} />)
+    const { container } = render(<DeckRow block={{ name: 'deck_view' } as never} showDeck={() => {}} />)
     expect(container).toBeEmptyDOMElement()
   })
 })
