@@ -83,5 +83,7 @@ packages/dsh-deck/  @onetest/dsh-deck — the DeepSeek Harness plugin: deck tool
 - `README.md` — the framework's quick-start and slide-authoring guide.
 - `scripts/pptx/README.md` — the pixel-tight HTML→PowerPoint runbook.
 - The `octodeck-presentations` skill (`SKILL.md` + `references/`) — how to build/export decks.
+- `docs/design/2026-08-22-dsh-deck-handoff.md` — state of the DeepSeek Harness plugin: what is
+  verified, what is assumed, and the constraints that are not visible from the code.
 - Memory index: `.claude/projects/-Users-arozumenko-octofarm/memory/MEMORY.md`.
 ```

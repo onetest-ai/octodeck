@@ -172,3 +172,5 @@ Publishing needs an authenticated npm session with rights to the `@onetest` scop
 ## Design
 
 [docs/design/2026-08-21-deck-capability-and-canvas.md](../../docs/design/2026-08-21-deck-capability-and-canvas.md) records the architecture, the alternatives that were rejected, and per-criterion acceptance status.
+
+[docs/design/2026-08-22-dsh-deck-handoff.md](../../docs/design/2026-08-22-dsh-deck-handoff.md) is the working handoff: what is proven versus assumed, the non-obvious constraints already discovered, and what was deliberately deferred. Read it before changing this package.
