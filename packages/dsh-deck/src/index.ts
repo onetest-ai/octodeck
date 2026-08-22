@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { defineTool, type ToolDefinition } from '@deepseek-ai/dsh-tools'
 import { THEMES } from './definition.ts'
 import { exportHtml } from './export/html.ts'
+import { exportPdf } from './export/pdf/index.ts'
 import { exportPptx } from './export/pptx.ts'
 import { mountExportRoute } from './host/export-route.ts'
 import { mountPreviewRoute, type PreviewHostContext } from './host/preview-route.ts'
@@ -75,7 +76,7 @@ export function apply(ctx: Context & PreviewHostContext, config: Config): void {
   mountExportRoute(ctx, { base: config.base }, {
     html: exportHtml,
     pptx: exportPptx,
-    pdf: async () => { throw new Error('pdf export is not implemented yet') },
+    pdf: exportPdf,
   })
   const options = { workspace, base: config.base }
 
