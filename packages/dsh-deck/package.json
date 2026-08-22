@@ -1,6 +1,6 @@
 {
   "name": "@onetest/dsh-deck",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Octodeck deck capability for DeepSeek Harness: deck tools, a live preview server, and the deck canvas",
   "keywords": [
     "deepseek-harness",
@@ -55,13 +55,13 @@
     "presets/**"
   ],
   "scripts": {
-    "build": "npm run vendor && tsc -p tsconfig.json",
+    "build": "npm run vendor && tsc -p tsconfig.json && tsdown",
     "bundle": "tsdown",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json",
     "pretest": "npm run vendor && tsdown",
     "test": "vitest run",
     "vendor": "node scripts/vendor-framework.mjs && tsc -p tsconfig.vendor.json && node scripts/prune-vendor-sources.mjs",
-    "prepack": "npm run vendor"
+    "prepack": "npm run build"
   },
   "dependencies": {
     "vite": "^6.0.0",
