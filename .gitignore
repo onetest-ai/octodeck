@@ -29,6 +29,14 @@ skill/
 # deck-research inputs (not part of the framework)
 input/
 
+# Scaffolded decks are personal, not repository content. `npm run new:deck`
+# writes a deck here and an entry HTML at the root; vite.config.ts discovers
+# the entry, so neither needs to be tracked.
+/src/decks/*
+!/src/decks/.gitkeep
+/*.html
+!/index.html
+
 # OS / editor
 .DS_Store
 Thumbs.db

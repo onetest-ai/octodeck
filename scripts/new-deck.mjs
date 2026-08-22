@@ -1,8 +1,8 @@
 // Scaffold a new Octodeck deck.
 //   npm run new:deck -- <name>        e.g.  npm run new:deck -- product-launch
-// Creates src/decks/<name>/{main.ts,slides.ts,<name>.css} + <name>.html and
-// registers the deck in vite.config.ts. Then: npm run dev → open /<name>.html
-import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs'
+// Creates src/decks/<name>/{main.ts,slides.ts,<name>.css} + <name>.html.
+// vite.config.ts discovers the entry on its own; nothing tracked is edited. Then: npm run dev → open /<name>.html
+import { existsSync, mkdirSync, writeFileSync } from 'fs'
 
 const name = (process.argv[2] || '').trim()
 if (!/^[a-z][a-z0-9-]*$/.test(name)) {
@@ -104,23 +104,14 @@ writeFileSync(`${deckDir}/${name}.css`, `/* Deck-local styling for "${title}".
    Reads the --octo-* contract only — no hardcoded colours, so it themes for free. */
 `)
 
-// register in vite.config.ts (insert after the stable \`main: 'index.html',\` entry)
-const vitePath = 'vite.config.ts'
-let vite = readFileSync(vitePath, 'utf8')
-// quote the key — kebab-case names aren't valid bare JS identifiers
-if (vite.includes(`'${name}': '${htmlPath}'`)) {
-  console.warn(`· ${name} already in vite.config.ts input — left as-is`)
-} else if (vite.includes(`main: 'index.html',`)) {
-  vite = vite.replace(`main: 'index.html',`, `main: 'index.html',\n        '${name}': '${htmlPath}',`)
-  writeFileSync(vitePath, vite)
-} else {
-  console.warn(`· couldn't auto-register in ${vitePath} — add manually:  '${name}': '${htmlPath}'`)
-}
+// No registration step: vite.config.ts discovers `*.html` at build time. A deck
+// is yours, not the repository's — scaffolding one must not edit a tracked file,
+// or every deck would leave a change that can be neither committed nor dropped.
 
 console.log(`✓ scaffolded "${title}"
   ${htmlPath}
   ${deckDir}/main.ts · slides.ts · ${name}.css
-  registered in vite.config.ts
+  (git-ignored — decks are local by default)
 
 next:
   npm run dev            → http://localhost:9001/${htmlPath}
