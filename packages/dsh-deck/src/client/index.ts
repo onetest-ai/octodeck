@@ -16,22 +16,45 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 // ...and ui-conversation's own slots depend on ui-layout's `declare module`
 // for the top-level `'conversation'`/`'details'` slot names.
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
-import { DeckToolview } from './DeckToolview.tsx'
+import { DeckOverlay } from './DeckOverlay.tsx'
+import { DeckRow } from './DeckRow.tsx'
+import { createCanvasController } from './canvas-controller.ts'
 
 /** Required service: the slot registry (see DeckToolview.tsx for the slot choice). */
 export const inject = ['slots']
 
 /**
- * Browser half: register the deck canvas as the keyed `tool.call.toolview`
- * renderer for `deck_view` calls — not `conversation.details.tool` (see the
- * resolved-props note at the top of DeckToolview.tsx). `slots.inject` waits
- * for the slot declaration (made by ui-tool's `conversation.chat.node`
- * registration) rather than assuming apply order, and withdraws the
- * contribution if that declaration collapses.
+ * Browser half: two registrations sharing one store.
+ *
+ * The deck renders on a single canvas floating over the app (`shell.overlay`,
+ * a root-scoped list slot the shell documents as the seat for exactly this),
+ * while each `deck_view` call leaves a compact row in the transcript that
+ * points the canvas at its deck. The alternative — a live frame per call —
+ * accumulates stale running documents up the conversation, which is the whole
+ * reason the canvas is one surface rather than many.
+ *
+ * `conversation.details.tool` is not used: it is `kind: 'single'`, so taking
+ * that seat would silently replace every other tool's details view (see the
+ * resolved-props note atop DeckToolview.tsx).
+ *
+ * Both registrations close over one plugin-owned controller, which is how the
+ * row's click reaches the overlay. A declared slot store cannot do this job:
+ * the row's slot is session-scoped and the canvas's is root-scoped, and one
+ * store handle belongs to one scope. `slots.inject` waits for each declaration rather
+ * than assuming apply order, and withdraws the contribution if one collapses.
  */
 export function apply(ctx: Context): void {
+  const canvas = createCanvasController()
   ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
     name: 'tool.call.toolview',
     key: 'deck_view',
-  }, DeckToolview))
+    inject: () => ({ showDeck: canvas.show }),
+  }, DeckRow))
+  // A list slot: entries are additive and identified by id, so this canvas
+  // sits beside whatever else floats over the app rather than replacing it.
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay',
+    id: 'deck-canvas',
+    inject: () => ({ hooks: { deckCanvas: canvas.store }, close: canvas.close, setSlide: canvas.setSlide }),
+  }, DeckOverlay))
 }
