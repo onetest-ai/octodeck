@@ -136,6 +136,6 @@ async function loadWalker(): Promise<(doc: Document) => unknown[]> {
   // `walker.ts`, never `extract.ts`: the latter also carries the Node-side
   // mapping, which pulls `color.ts` and the OOXML pipeline into a browser
   // bundle that needs none of it.
-  const { WALKER } = await import('../../vendor/pptx/walker.ts')
+  const { WALKER } = await import('../../vendor/pptx/walker.js')
   return WALKER as (doc: Document) => unknown[]
 }

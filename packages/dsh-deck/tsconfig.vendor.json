@@ -1,0 +1,28 @@
+{
+  // The vendored pptx pipeline is compiled in place, beside the data it reads.
+  //
+  // It cannot be compiled into `lib/` with the rest of `src`: `theme.ts` loads
+  // `themes.resolved.json` relative to its own module URL, and the fonts and
+  // backdrops are resolved the same way — moving the code away from those
+  // files breaks every one of those reads. Compiling here keeps code and data
+  // together and gives `src` real `.js` to import with `.d.ts` beside it.
+  //
+  // `strict` is off because this is vendored code written against the CLI's
+  // looser settings; it is copied, not authored here, so it is not this
+  // package's job to retype it.
+  "compilerOptions": {
+    "target": "es2024",
+    "lib": ["ESNext", "DOM"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "strict": false,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "declaration": true,
+    "skipLibCheck": true,
+    "outDir": "vendor/pptx",
+    "rootDir": "vendor/pptx"
+  },
+  "include": ["vendor/pptx/**/*.ts"],
+  "exclude": ["vendor/pptx/**/*.d.ts"]
+}

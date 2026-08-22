@@ -45,7 +45,10 @@ const pptxVendor = new URL('vendor/pptx/', packageRoot)
 
 await rm(fileURLToPath(pptxVendor), { recursive: true, force: true })
 await mkdir(fileURLToPath(pptxVendor), { recursive: true })
-for (const file of ['color.ts', 'ir.ts', 'ooxml.ts', 'theme.ts', 'extract.ts', 'walker.ts', 'themes.resolved.json']) {
+// `extract.ts` is deliberately NOT vendored: it drives Playwright, which is
+// a devDependency of the repository root, not of this package. Its Node-side
+// mapping lives in `ir-from-raw.ts`, which is.
+for (const file of ['color.ts', 'ir.ts', 'ooxml.ts', 'theme.ts', 'walker.ts', 'ir-from-raw.ts', 'themes.resolved.json']) {
   await cp(fileURLToPath(new URL(file, pptxSource)), fileURLToPath(new URL(file, pptxVendor)))
 }
 for (const directory of ['fonts', 'backdrops']) {

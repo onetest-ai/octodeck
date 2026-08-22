@@ -2,6 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { defineTool, type ToolDefinition } from '@deepseek-ai/dsh-tools'
 import { THEMES } from './definition.ts'
 import { exportHtml } from './export/html.ts'
+import { exportPptx } from './export/pptx.ts'
 import { mountExportRoute } from './host/export-route.ts'
 import { mountPreviewRoute, type PreviewHostContext } from './host/preview-route.ts'
 import { createDeck, viewDeck } from './tools/deck-create.ts'
@@ -68,12 +69,12 @@ export function apply(ctx: Context & PreviewHostContext, config: Config): void {
   // is load bearing: `export` is a legal deck name, so a bare `export`
   // segment would shadow a real deck.
   //
-  // PPTX and PDF need the deck measured in a browser, which only the canvas
-  // can do — the server has no renderer. Until those producers land they
-  // fail loudly rather than returning an empty file that looks like a deck.
+  // PPTX and PDF receive raw walker items measured by the canvas: the server
+  // has no renderer of its own, which is also why export cannot be a
+  // model-callable tool.
   mountExportRoute(ctx, { base: config.base }, {
     html: exportHtml,
-    pptx: async () => { throw new Error('pptx export is not implemented yet') },
+    pptx: exportPptx,
     pdf: async () => { throw new Error('pdf export is not implemented yet') },
   })
   const options = { workspace, base: config.base }

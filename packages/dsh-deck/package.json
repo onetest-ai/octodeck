@@ -60,7 +60,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json",
     "pretest": "npm run vendor && tsdown",
     "test": "vitest run",
-    "vendor": "node scripts/vendor-framework.mjs",
+    "vendor": "node scripts/vendor-framework.mjs && tsc -p tsconfig.vendor.json && node scripts/prune-vendor-sources.mjs",
     "prepack": "npm run vendor"
   },
   "dependencies": {

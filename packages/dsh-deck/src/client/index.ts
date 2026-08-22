@@ -19,6 +19,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import { DeckOverlay, type ExportFormat } from './DeckOverlay.tsx'
 import { DeckRow } from './DeckRow.tsx'
 import { createCanvasController } from './canvas-controller.ts'
+import { runExport } from './export-actions.ts'
 
 /** Required service: the slot registry (see DeckToolview.tsx for the slot choice). */
 export const inject = ['slots']
@@ -61,10 +62,13 @@ export function apply(ctx: Context): void {
       place: canvas.place,
       setTheme: canvas.setTheme,
       setMode: canvas.setMode,
-      // Replaced by the real export driver once the extractor lands; until
-      // then the menu reports rather than silently doing nothing.
       startExport: (format: ExportFormat) => {
-        canvas.exportDone(`${format.toUpperCase()} export is not wired up yet`)
+        const state = canvas.store.getSnapshot()
+        if (state.view === null) return
+        // The displayed theme, falling back to the deck's authored one — the
+        // same value the frame is showing, so the file matches what the
+        // reader is looking at.
+        void runExport(canvas, state.view, state.theme ?? state.view.theme, state.mode, format)
       },
     }),
   }, DeckOverlay))
