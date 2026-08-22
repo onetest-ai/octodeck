@@ -163,7 +163,22 @@ function WALKER(): any[] {
     const grads = collectGrads(svg)
     const kids: any[] = []
     const all = svg.querySelectorAll('rect, circle, ellipse, line, path, polygon, polyline, text')
-    all.forEach((el) => { if (el.closest('defs') || el.closest('marker')) return; const m = (el as any).getScreenCTM(); if (m) svgEl(el, m, grads, kids) })
+    all.forEach((el) => {
+      if (el.closest('defs') || el.closest('marker')) return
+      // The native-shape query must not reach inside a foreignObject: that
+      // subtree is ordinary HTML, measured below by the HTML walker rather
+      // than through the SVG transform path.
+      if (el.closest('foreignObject')) return
+      const m = (el as any).getScreenCTM(); if (m) svgEl(el, m, grads, kids)
+    })
+    // A foreignObject holds HTML, which the SVG translator cannot express —
+    // Octodeck's diagram nodes are `div.octo-dnode` inside one. Walking them
+    // through `step` is what keeps them in the export; without it a diagram
+    // exports as bare connectors with every node box silently missing, which
+    // looks like a rendering bug rather than an extraction gap.
+    svg.querySelectorAll('foreignObject').forEach((fo) => {
+      fo.childNodes.forEach((n) => { if (n.nodeType === 1) step(n as Element, kids) })
+    })
     if (kids.length) out.push({ t: 'group', name: 'diagram', children: kids })
   }
 
