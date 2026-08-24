@@ -1,6 +1,6 @@
 {
   "name": "@onetest/dsh-deck",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Octodeck deck capability for DeepSeek Harness: deck tools, a live preview server, and the deck canvas",
   "keywords": [
     "deepseek-harness",
@@ -41,13 +41,15 @@
     },
     "client": {
       "platform": "web"
-    }
+    },
+    "presets": "./presets"
   },
   "engines": {
     "node": "^22.19 || >=24"
   },
   "files": [
     "lib/**/*.js",
+    "lib/client.js.map",
     "lib/types/**/*.d.ts",
     "cordis.patch.yml",
     "runtime/**",

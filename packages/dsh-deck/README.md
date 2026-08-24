@@ -33,9 +33,12 @@ npm run bundle --workspace @onetest/dsh-deck   # browser half
 
 dsh plugin --profile web add file:/path/to/octodeck/packages/dsh-deck
 # append "@onetest/dsh-deck" to dsh.profile.bundles in $DSH_HOME/profiles/web/package.json
-cp -r packages/dsh-deck/presets/deck-creator "$DSH_HOME/.agent-presets/"
+cp -r packages/dsh-deck/presets/deck-creator "$DSH_HOME/.agent-presets/"   # CLI only; see below
 dsh --profile web
 ```
+
+The `cp` is the CLI path's manual step. A desktop shell that reads `dsh.presets` installs
+the preset itself — see *Agent preset* below.
 
 Pick **Deck creator** in the agent-preset selector, then ask for a deck. The deck lands in the session's selected workspace under `.deck/<name>/`, and a compact row in the transcript opens it on the canvas.
 
@@ -154,11 +157,27 @@ The bundle's cordis patch sets one field, validated at load — a malformed valu
     base: /deck        # must be a non-empty string beginning with '/'
 ```
 
+## Agent preset
+
+`presets/deck-creator/` ships in the package and the manifest declares it as
+`dsh.presets: "./presets"` — one directory per preset, each holding the `preset.yml`
+that `@deepseek-ai/dsh-agent-presets` needs to recognize one.
+
+The declaration is what a host reads to install the preset for you. `dsh-desktop`
+copies every declared preset directory into `$DSH_HOME/.agent-presets/<id>/` when
+the plugin installs, marking each copy with its source package so a preset you wrote
+by hand is never overwritten or pruned.
+
+**The `dsh` CLI has no such step** — copy the directory yourself, as the install
+section shows. The reason is structural rather than an oversight: a plugin cannot add
+a preset root by patch, because `apps/cli`'s `composeProfile` appends a final overlay
+that replaces the `agent-presets` row's `roots` wholesale with the deployment's own
+shipped root. Copying into the user root is the only mechanism that reaches the
+registry at all.
+
 ## Known limitations
 
 **Registering the bundle is a manual step.** `dsh plugin --profile web add` installs the package but does not add it to the profile's bundle list; append `"@onetest/dsh-deck"` to `dsh.profile.bundles` in `$DSH_HOME/profiles/web/package.json` yourself.
-
-**The preset is copied, not registered.** `presets/deck-creator/` ships in the package; copy it to `$DSH_HOME/.agent-presets/` to make it appear in the preset picker. A plugin cannot add a preset root without restating the `agent-presets` row's whole config, which would fight the deployment's own shipped root.
 
 **`tool-todo` is absent from the preset.** Mounting it from a user-root preset failed to apply, and it is not load-bearing for authoring a deck, so it was left out rather than shipped broken.
 
@@ -199,7 +218,7 @@ Check the dry run lists all four of these, because each is something a consumer 
 | `vendor/src/framework/**`, `vendor/src/themes/**` | The framework sources the preview server compiles. Absent, every deck fails to render. |
 | `runtime/**` | The deck host page and its entry module. |
 | `cordis.patch.yml` | The bundle patch; without it the package is not installable as a bundle. |
-| `presets/**` | The Deck creator agent preset. |
+| `presets/**` | The Deck creator agent preset, declared as `dsh.presets`. |
 
 `prepack` re-runs the vendor step, so a publish from a clean checkout still carries the framework.
 
