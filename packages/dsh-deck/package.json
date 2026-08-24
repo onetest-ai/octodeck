@@ -48,6 +48,7 @@
   },
   "files": [
     "lib/**/*.js",
+    "lib/client.js.map",
     "lib/types/**/*.d.ts",
     "cordis.patch.yml",
     "runtime/**",

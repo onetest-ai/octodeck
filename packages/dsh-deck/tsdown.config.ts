@@ -36,6 +36,12 @@ export default defineConfig([
       'import.meta.env': JSON.stringify({ MODE: process.env.NODE_ENV ?? 'production' }),
     },
     outputOptions: {
+      // One package, one bundle. The harness serves exactly `/plugins/<id>/client.js`
+      // (plus its map) and the browser module system's `require` resolves only seed
+      // words and boot-graph rows — an emitted chunk is unroutable there, and the
+      // `files` glob would not publish it either. So the pptx walker's dynamic import
+      // has to land inside the entry rather than becoming a sibling chunk.
+      codeSplitting: false,
       entryFileNames: 'client.js',
       banner: `window.__ModuleLoader__.load({ id: ${JSON.stringify(ID)}, factory: (require) => {`,
       footer: 'return module.exports; } });',
