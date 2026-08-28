@@ -206,8 +206,15 @@ describe('framework source presence check (Finding 3b)', () => {
     try {
       const { startPreviewServer: startWithMissingFramework } = await import('../src/octodeck/vite-server.ts')
       const workspace = await mkdtemp(join(tmpdir(), 'dsh-deck-'))
+      // reason: this fires on an installed copy too, so it must name the
+      // build step that fills `vendor/` rather than claim the package only
+      // runs from a checkout — which it no longer does, and which sent the
+      // reader looking for the wrong problem.
       await expect(startWithMissingFramework({ workspace, base: '/deck' })).rejects.toThrow(
-        /Octodeck framework source not found at .*src[/\\]framework[/\\]index\.ts.*only runnable from within the octodeck repository/s,
+        /Octodeck framework source not found at .*src[/\\]framework[/\\]index\.ts.*vendored into this package by its build/s,
+      )
+      await expect(startWithMissingFramework({ workspace, base: '/deck' })).rejects.toThrow(
+        /npm run vendor/s,
       )
     } finally {
       vi.doUnmock('node:fs/promises')

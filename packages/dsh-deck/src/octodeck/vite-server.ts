@@ -78,17 +78,17 @@ export async function startPreviewServer(
   const themesEntry = fileURLToPath(new URL('themes/index.ts', VENDORED_SOURCE))
   // The sources ship inside the package (see VENDORED_SOURCE), so this
   // resolves for an installed copy as readily as from this repository. The
-  // check below stays because the copy is a build step: a package built
-  // without it would otherwise serve every deck a confusing module-not-found
-  // from deep inside Vite; failing here, once, with the
-  // resolved path and the actual requirement named, is the only fix in scope
-  // until the framework itself is published or bundled.
+  // check stays because vendoring is a build step: a package built without it
+  // would otherwise serve every deck a confusing module-not-found from deep
+  // inside Vite. Failing here once, naming the resolved path and the step that
+  // fills it, is what turns that into something actionable.
   const frameworkStat = await stat(frameworkEntry).catch((error: unknown) => {
     throw new Error(
       `Octodeck framework source not found at ${frameworkEntry}. `
-      + 'This build resolves "octodeck/framework" to a fixed path inside an Octodeck '
-      + 'checkout and is currently only runnable from within the octodeck repository, '
-      + 'not from an installed @onetest/dsh-deck package.',
+      + 'The framework and themes are vendored into this package by its build; '
+      + 'this copy was built without that step, or it has been removed since. '
+      + 'Run "npm run build --workspace @onetest/dsh-deck", which runs "npm run vendor" first, '
+      + 'or reinstall the package.',
       { cause: error },
     )
   })

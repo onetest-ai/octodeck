@@ -11,7 +11,7 @@ Developed against DeepSeek Harness `0.1.1-rc.2`, and verified end to end in a re
 ## Requirements
 
 - Node `^22.19 || >=24`
-- A checkout of this repository. The plugin resolves the Octodeck framework from `src/framework` and `src/themes` in the repository root; it is not bundled or published, so the plugin cannot currently run from an installed tarball. It fails loudly at server start when the framework source is absent, naming the path it looked for.
+- Nothing beyond the package. The Octodeck framework and themes are vendored into it at build time and resolved from inside the package, so an installed copy serves a deck as readily as this checkout does. Vendoring is a build step rather than a published dependency, so a copy built without it fails loudly at server start, naming the resolved path and the step that fills it.
 
 ## Build
 
@@ -205,8 +205,6 @@ delete it.
 **Registering the bundle is a manual step.** `dsh plugin --profile web add` installs the package but does not add it to the profile's bundle list; append `"@onetest/dsh-deck"` to `dsh.profile.bundles` in `$DSH_HOME/profiles/web/package.json` yourself.
 
 **Updates are a page reload, not an in-place hot update.** A deck's `slides.ts` is reached through a dynamic `import()` the transform pipeline does not rewrite, so it never enters Vite's hot-update graph and Vite reloads the page instead. The deck updates, but returns to slide 1 each time.
-
-**A `dsh plugin add` install must be run from a directory whose parent chain reaches this repository**, for the same framework-path reason.
 
 **Deck files are written with `node:fs` directly**, bypassing the harness's filesystem capability and its sandbox and approval policy. Every other file-writing tool in the harness goes through that seam.
 
