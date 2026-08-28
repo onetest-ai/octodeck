@@ -1,6 +1,6 @@
 {
   "name": "@onetest/dsh-deck",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Octodeck deck capability for DeepSeek Harness: deck tools, a live preview server, and the deck canvas",
   "keywords": [
     "deepseek-harness",
