@@ -165,6 +165,33 @@ skill registry resolves, so a deployment without one still gets the deck tools. 
 is read from the packaged asset on every load rather than captured at mount, which keeps
 an edited asset live in a development checkout without restarting the host.
 
+### The installed copy
+
+Mounting also writes the skill to `$DSH_HOME/skills/octodeck-deck/SKILL.md`, so the
+guidance is a file you can read, edit, and override — the way the preset this replaced
+was a directory you could open. The copy is stamped with this package's name and version
+in its frontmatter, which is what decides the three cases:
+
+| Found | Done |
+|---|---|
+| nothing | installed |
+| this package's copy, older version | replaced |
+| this package's copy, this version or newer | left alone |
+| a file this package did not write | left alone |
+
+A skill of that name you authored yourself is never overwritten — it outranks a shipped
+one by intent, and losing it silently would be worse than shipping nothing. The write is
+never fatal either: the bundled provider above already serves the skill, so a home that
+cannot be written costs visibility rather than the capability, and the failure is logged.
+
+Because the installed copy sits in a user root (rank 400) and the bundled provider is
+`bundled` (rank 600), the file wins while it exists — editing it is how you override the
+shipped guidance. Deleting it restores the packaged one at the next session.
+
+**The copy outlives the plugin.** Uninstall the package and the file remains, describing
+`deck_create` and `deck_view` to sessions that no longer have them; delete it yourself.
+The preset this replaced had the same property.
+
 **This replaced a `deck-creator` agent preset.** The preset put the same guidance in
 every session's system prompt, and to do so had to restate a composition — file tools, a
 shell — that the deployment's own preset already provides, silently dropping everything
@@ -214,7 +241,8 @@ Check the dry run lists all four of these, because each is something a consumer 
 | `vendor/src/framework/**`, `vendor/src/themes/**` | The framework sources the preview server compiles. Absent, every deck fails to render. |
 | `runtime/**` | The deck host page and its entry module. |
 | `cordis.patch.yml` | The bundle patch; without it the package is not installable as a bundle. |
-| `assets/**` | The bundled `octodeck-deck` skill body, read on every load. |
+| `assets/**` | The `octodeck-deck` skill body, read on every load and copied into `$DSH_HOME/skills`. |
+| `package.json` | Read at mount for the version stamped on the installed skill copy. |
 
 `prepack` re-runs the vendor step, so a publish from a clean checkout still carries the framework.
 

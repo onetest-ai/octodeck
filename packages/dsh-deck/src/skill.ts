@@ -35,7 +35,7 @@ export const PROVIDER_NAME = 'octodeck-deck'
  * from. (The filesystem provider strips frontmatter for the same reason;
  * nothing strips it here.)
  */
-const SKILL_BODY_URL = new URL('../assets/octodeck-deck.md', import.meta.url)
+export const SKILL_BODY_URL = new URL('../assets/octodeck-deck.md', import.meta.url)
 
 /**
  * Where the skill's relative resources resolve from.

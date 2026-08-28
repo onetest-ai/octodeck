@@ -7,6 +7,7 @@ import { exportPptx } from './export/pptx.ts'
 import { mountExportRoute } from './host/export-route.ts'
 import { mountPreviewRoute, type PreviewHostContext } from './host/preview-route.ts'
 import { skillProvider } from './skill.ts'
+import { installSkill, packageVersion } from './skill-install.ts'
 import { createDeck, viewDeck } from './tools/deck-create.ts'
 import type { PreviewOptions } from './tools/deck-create.ts'
 
@@ -122,6 +123,22 @@ export function apply(ctx: Context & PreviewHostContext, config: Config): void {
   ctx.inject(['skills'], (skilled: Context) => {
     skilled.skills.registerProvider(() => skillProvider)
   })
+
+  // And a copy under `$DSH_HOME/skills`, so the guidance is a file the user
+  // can read, edit, and override — the way the agent preset this replaced was
+  // a directory they could open. Installed when absent, refreshed when this
+  // package ships a newer version, and never written over a file this package
+  // did not write.
+  //
+  // Not awaited and never fatal: the bundled provider above already serves
+  // the skill, so a home that cannot be written costs visibility, not the
+  // capability.
+  void (async () => {
+    const outcome = await installSkill(await packageVersion())
+    if (outcome.action === 'failed') {
+      ctx.logger?.warn?.(`dsh-deck: the octodeck-deck skill could not be installed: ${outcome.reason}`)
+    }
+  })()
 }
 
 /**
