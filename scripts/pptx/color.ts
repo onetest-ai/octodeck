@@ -1,6 +1,7 @@
 // Colour math for the PPTX exporter — parse the colour strings the browser emits
-// (rgb / oklch / oklab / hex / transparent), convert to sRGB hex + alpha for OOXML,
-// and mix in OKLab (the same space Octodeck's `color-mix(in oklab, …)` uses).
+// (rgb / oklch / oklab / lab / lch / color() / hex / transparent), convert to sRGB
+// hex + alpha for OOXML, and mix in OKLab (the same space Octodeck's
+// `color-mix(in oklab, …)` uses).
 //
 // Pure, dependency-free. Run under `node --experimental-strip-types`.
 
@@ -79,7 +80,12 @@ export function parseColor(input: string): RGBA {
   // split args on commas or whitespace, pulling an optional "/ alpha"
   const [body, alphaPart] = fn[2].split('/')
   const parts = body.trim().split(/[\s,]+/).filter(Boolean)
-  const alpha = alphaTok(alphaPart?.trim() ?? (parts.length === 4 ? parts.pop() : undefined))
+  // A fourth argument is a legacy comma-form alpha — except in `color()`,
+  // whose first argument names the space, so four arguments there are the
+  // space and three channels. Popping one would take the blue channel for
+  // alpha and leave every colour with none.
+  const trailing = kind !== 'color' && parts.length === 4 ? parts.pop() : undefined
+  const alpha = alphaTok(alphaPart?.trim() ?? trailing)
 
   if (kind === 'rgb' || kind === 'rgba') {
     return { r: chan(parts[0]), g: chan(parts[1]), b: chan(parts[2]), a: alpha }
@@ -96,7 +102,185 @@ export function parseColor(input: string): RGBA {
     const H = (num(parts[2]) * Math.PI) / 180
     return labToRGBA(num(parts[0]), num(parts[1]) * Math.cos(H), num(parts[1]) * Math.sin(H), alpha)
   }
+  if (kind === 'color') return colorFnToRGBA(parts, alpha, input)
   throw new Error(`unsupported colour function: ${kind} (${input})`)
+}
+
+/**
+ * A predefined `color()` space: how to linearize its channels, and the matrix
+ * taking those linear channels to XYZ.
+ *
+ * Stated as to-XYZ rather than as a direct to-sRGB matrix because a to-XYZ
+ * matrix is checkable: its rows must sum to the space's own white point, which
+ * is what the colour tests assert. A composed to-sRGB matrix carries no such
+ * property, so a mistyped digit in one would shift every colour silently.
+ */
+interface ColorSpace {
+  /** Channel transfer function to linear light. */
+  readonly linearize: (c: number) => number
+  /** Row-major 3x3 taking this space's linear channels to XYZ. */
+  readonly toXYZ: readonly number[]
+  /** The white point its XYZ is relative to. */
+  readonly white: 'd65' | 'd50'
+}
+
+/** A power transfer function, odd-symmetric about zero so negatives survive. */
+const gammaTransfer = (exponent: number) => (c: number): number =>
+  (c < 0 ? -1 : 1) * Math.abs(c) ** exponent
+
+/** sRGB and Display P3 share this transfer function; only their primaries differ. */
+const srgbTransfer = (c: number): number => (c < 0 ? -toLinear(-c) : toLinear(c))
+
+/** sRGB and srgb-linear share primaries; only their transfer functions differ. */
+const SRGB_TO_XYZ = [
+  0.4123907992659595, 0.3575843393838780, 0.1804807884018343,
+  0.2126390058715104, 0.7151686787677559, 0.0721923153607337,
+  0.0193308187155918, 0.1191947797946259, 0.9505321522496607,
+] as const
+
+/**
+ * The predefined spaces `color()` accepts, keyed as CSS spells them.
+ *
+ * All of them, rather than the one a theme happens to emit today: a space left
+ * out fails with the same unhelpful message this fixes, and the alternative to
+ * a matrix here is a second bug report later.
+ */
+const COLOR_SPACES: Record<string, ColorSpace> = {
+  'srgb': { linearize: srgbTransfer, toXYZ: SRGB_TO_XYZ, white: 'd65' },
+  'srgb-linear': { linearize: (c) => c, toXYZ: SRGB_TO_XYZ, white: 'd65' },
+  'display-p3': {
+    linearize: srgbTransfer,
+    white: 'd65',
+    toXYZ: [
+      0.4865709486482162, 0.2656676931690931, 0.1982172852343625,
+      0.2289745640697488, 0.6917385218365064, 0.0792869417937449,
+      0.0000000000000000, 0.0451133818589026, 1.0439443689009757,
+    ],
+  },
+  'a98-rgb': {
+    linearize: gammaTransfer(563 / 256),
+    white: 'd65',
+    toXYZ: [
+      0.5766690429101305, 0.1855582379065463, 0.1882286462349947,
+      0.2973449752505361, 0.6273635662554661, 0.0752914584939978,
+      0.0270313059491580, 0.0706888525581085, 0.9913375368376388,
+    ],
+  },
+  'rec2020': {
+    linearize: (c) => {
+      const alpha = 1.09929682680944
+      const beta = 0.018053968510807
+      const abs = Math.abs(c)
+      const sign = c < 0 ? -1 : 1
+      return abs < beta * 4.5 ? c / 4.5 : sign * ((abs + alpha - 1) / alpha) ** (1 / 0.45)
+    },
+    white: 'd65',
+    toXYZ: [
+      0.6369580483012914, 0.1446169035862083, 0.1688809751641721,
+      0.2627002120112671, 0.6779980715188708, 0.0593017086214622,
+      0.0000000000000000, 0.0280726930490874, 1.0609850577107912,
+    ],
+  },
+  'prophoto-rgb': {
+    linearize: (c) => (Math.abs(c) <= 16 / 512 ? c / 16 : gammaTransfer(1.8)(c)),
+    white: 'd50',
+    toXYZ: [
+      0.7977604896723027, 0.1351757162326781, 0.0313534044222198,
+      0.2880711282292934, 0.7118432178101014, 0.0000856539616051,
+      0.0000000000000000, 0.0000000000000000, 0.8251046025104601,
+    ],
+  },
+}
+
+/**
+ * XYZ (D50) to linear sRGB, Bradford adaptation baked in.
+ *
+ * The same conversion {@link labToRGBA} applies inline: CIELab is a D50 space,
+ * as `color(prophoto-rgb …)` and `color(xyz-d50 …)` are.
+ */
+const XYZ_D50_TO_LINEAR_SRGB = [
+  3.1341359569958707, -1.6173863321612538, -0.4906619460083532,
+  -0.978795502912089, 1.916254567259524, 0.03344273116131949,
+  0.07195537988411677, -0.2289768264158322, 1.405386058324125,
+] as const
+
+/** XYZ (D65) to linear sRGB. */
+const XYZ_D65_TO_LINEAR_SRGB = [
+  3.2409699419045226, -1.5373831775700939, -0.4986107602930034,
+  -0.9692436362808796, 1.8759675015077204, 0.0415550574071756,
+  0.0556300796969936, -0.2039769588889765, 1.0569715142428786,
+] as const
+
+/**
+ * Read a `color()` function into sRGB.
+ *
+ * Chromium emits this form for a resolved `color-mix()`, which is how every
+ * Octodeck theme states its translucent tokens — so an exporter that cannot
+ * read it cannot export a themed deck at all.
+ * @param parts - the arguments, the first naming the colour space.
+ * @param alpha - the parsed alpha.
+ * @param input - the original string, for the error.
+ * @returns the colour in sRGB.
+ * @throws {Error} when the space is not one CSS predefines.
+ */
+function colorFnToRGBA(parts: string[], alpha: number, input: string): RGBA {
+  const [space, ...rest] = parts
+  // `none` is a missing component, which CSS resolves to zero everywhere this
+  // exporter cares about.
+  const channels = [0, 1, 2].map((index) => {
+    const token = rest[index]
+    if (token === undefined || token === 'none') return 0
+    return token.endsWith('%') ? num(token) / 100 : num(token)
+  })
+  if (space === 'xyz' || space === 'xyz-d65') {
+    return fromLinear(apply(XYZ_D65_TO_LINEAR_SRGB, channels), alpha)
+  }
+  if (space === 'xyz-d50') return fromLinear(apply(XYZ_D50_TO_LINEAR_SRGB, channels), alpha)
+  const defined = COLOR_SPACES[space]
+  if (defined === undefined) throw new Error(`unsupported colour space in color(): ${space} (${input})`)
+  const xyz = apply(defined.toXYZ, channels.map(defined.linearize))
+  const matrix = defined.white === 'd50' ? XYZ_D50_TO_LINEAR_SRGB : XYZ_D65_TO_LINEAR_SRGB
+  return fromLinear(apply(matrix, xyz), alpha)
+}
+
+/**
+ * The white point a space's channels resolve to, as XYZ.
+ *
+ * Exported for the check that every matrix above carries the white it claims:
+ * a mistyped digit shifts colours in a way no rendered deck makes obvious.
+ * @param space - the space name as CSS spells it.
+ * @returns its white in XYZ, or undefined when the name is not a predefined space.
+ */
+export function whitePointOf(space: string): { xyz: number[]; white: 'd65' | 'd50' } | undefined {
+  const defined = COLOR_SPACES[space]
+  if (defined === undefined) return undefined
+  return { xyz: apply(defined.toXYZ, [1, 1, 1]), white: defined.white }
+}
+
+/**
+ * Multiply a row-major 3×3 by a 3-vector.
+ * @param matrix - the row-major matrix.
+ * @param vector - the three channels.
+ * @returns the product.
+ */
+function apply(matrix: readonly number[], vector: number[]): number[] {
+  return [0, 1, 2].map((row) =>
+    matrix[row * 3] * vector[0] + matrix[row * 3 + 1] * vector[1] + matrix[row * 3 + 2] * vector[2])
+}
+
+/**
+ * Gamma-encode linear sRGB into the range this module stores.
+ * @param linear - the three linear-light channels.
+ * @param alpha - the alpha to carry through.
+ * @returns the colour, clamped into gamut.
+ */
+function fromLinear(linear: number[], alpha: number): RGBA {
+  return {
+    r: clamp01(toGamma(linear[0])),
+    g: clamp01(toGamma(linear[1])),
+    b: clamp01(toGamma(linear[2])),
+    a: alpha,
+  }
 }
 
 // CSS lab() (CIELab, D50) → sRGB. Combined D50-XYZ→linear-sRGB matrix (Bradford baked in).
