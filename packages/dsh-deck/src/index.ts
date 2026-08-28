@@ -6,6 +6,7 @@ import { exportPdf } from './export/pdf/index.ts'
 import { exportPptx } from './export/pptx.ts'
 import { mountExportRoute } from './host/export-route.ts'
 import { mountPreviewRoute, type PreviewHostContext } from './host/preview-route.ts'
+import { skillProvider } from './skill.ts'
 import { createDeck, viewDeck } from './tools/deck-create.ts'
 import type { PreviewOptions } from './tools/deck-create.ts'
 
@@ -111,6 +112,16 @@ export function apply(ctx: Context & PreviewHostContext, config: Config): void {
   }))
 
   ctx.tools.register(deckViewTool(options))
+
+  // Optional, not injected by the plugin: a deployment without a skill
+  // registry still gets the deck tools, which are what the capability is.
+  // `ctx.inject` mounts this half only once `ctx.skills` resolves, and
+  // unmounts it with the plugin. Registering from the host plane files the
+  // provider into the global layer, so the skill reaches every session's
+  // catalog whatever preset it composed.
+  ctx.inject(['skills'], (skilled: Context) => {
+    skilled.skills.registerProvider(() => skillProvider)
+  })
 }
 
 /**

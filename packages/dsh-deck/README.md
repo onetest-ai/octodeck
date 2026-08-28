@@ -33,14 +33,10 @@ npm run bundle --workspace @onetest/dsh-deck   # browser half
 
 dsh plugin --profile web add file:/path/to/octodeck/packages/dsh-deck
 # append "@onetest/dsh-deck" to dsh.profile.bundles in $DSH_HOME/profiles/web/package.json
-cp -r packages/dsh-deck/presets/deck-creator "$DSH_HOME/.agent-presets/"   # CLI only; see below
 dsh --profile web
 ```
 
-The `cp` is the CLI path's manual step. A desktop shell that reads `dsh.presets` installs
-the preset itself — see *Agent preset* below.
-
-Pick **Deck creator** in the agent-preset selector, then ask for a deck. The deck lands in the session's selected workspace under `.deck/<name>/`, and a compact row in the transcript opens it on the canvas.
+Ask for a deck in any session. The deck lands in the session's selected workspace under `.deck/<name>/`, and a compact row in the transcript opens it on the canvas. Nothing has to be selected first: the tools mount on the host plane, so they are in every session's catalog, and the guidance arrives as the bundled skill below.
 
 ## Run the preview server directly
 
@@ -157,29 +153,29 @@ The bundle's cordis patch sets one field, validated at load — a malformed valu
     base: /deck        # must be a non-empty string beginning with '/'
 ```
 
-## Agent preset
+## Bundled skill
 
-`presets/deck-creator/` ships in the package and the manifest declares it as
-`dsh.presets: "./presets"` — one directory per preset, each holding the `preset.yml`
-that `@deepseek-ai/dsh-agent-presets` needs to recognize one.
+The package ships one skill, `octodeck-deck` (`assets/octodeck-deck.md`), registered on
+`ctx.skills` from the host plane — so it lands in the global layer and reaches every
+session's catalog whatever preset that session composed. The model loads it when a deck
+task matches its description; a user can invoke it directly with `/octodeck-deck`.
 
-The declaration is what a host reads to install the preset for you. `dsh-desktop`
-copies every declared preset directory into `$DSH_HOME/.agent-presets/<id>/` when
-the plugin installs, marking each copy with its source package so a preset you wrote
-by hand is never overwritten or pruned.
+The registration is optional: `ctx.inject(['skills'], …)` mounts that half only once a
+skill registry resolves, so a deployment without one still gets the deck tools. The body
+is read from the packaged asset on every load rather than captured at mount, which keeps
+an edited asset live in a development checkout without restarting the host.
 
-**The `dsh` CLI has no such step** — copy the directory yourself, as the install
-section shows. The reason is structural rather than an oversight: a plugin cannot add
-a preset root by patch, because `apps/cli`'s `composeProfile` appends a final overlay
-that replaces the `agent-presets` row's `roots` wholesale with the deployment's own
-shipped root. Copying into the user root is the only mechanism that reaches the
-registry at all.
+**This replaced a `deck-creator` agent preset.** The preset put the same guidance in
+every session's system prompt, and to do so had to restate a composition — file tools, a
+shell — that the deployment's own preset already provides, silently dropping everything
+it did not restate (todos, plan mode, compaction, subagents). Skill guidance costs one
+catalog line until it is loaded, works in an ordinary session, and can be edited without
+recomposing one. If you copied the preset into `$DSH_HOME/.agent-presets/deck-creator`,
+delete it.
 
 ## Known limitations
 
 **Registering the bundle is a manual step.** `dsh plugin --profile web add` installs the package but does not add it to the profile's bundle list; append `"@onetest/dsh-deck"` to `dsh.profile.bundles` in `$DSH_HOME/profiles/web/package.json` yourself.
-
-**`tool-todo` is absent from the preset.** Mounting it from a user-root preset failed to apply, and it is not load-bearing for authoring a deck, so it was left out rather than shipped broken.
 
 **Updates are a page reload, not an in-place hot update.** A deck's `slides.ts` is reached through a dynamic `import()` the transform pipeline does not rewrite, so it never enters Vite's hot-update graph and Vite reloads the page instead. The deck updates, but returns to slide 1 each time.
 
@@ -218,7 +214,7 @@ Check the dry run lists all four of these, because each is something a consumer 
 | `vendor/src/framework/**`, `vendor/src/themes/**` | The framework sources the preview server compiles. Absent, every deck fails to render. |
 | `runtime/**` | The deck host page and its entry module. |
 | `cordis.patch.yml` | The bundle patch; without it the package is not installable as a bundle. |
-| `presets/**` | The Deck creator agent preset, declared as `dsh.presets`. |
+| `assets/**` | The bundled `octodeck-deck` skill body, read on every load. |
 
 `prepack` re-runs the vendor step, so a publish from a clean checkout still carries the framework.
 

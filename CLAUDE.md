@@ -52,7 +52,7 @@ skills/octodeck-presentations/   the distributable SKILL (methodology + QA refs 
 packages/dsh-deck/  @onetest/dsh-deck — the DeepSeek Harness plugin: deck tools, a
                  middleware-mode Vite preview server, the floating canvas (theme
                  switcher + HTML/PDF/PPTX export buttons), the export route, and the
-                 Deck creator agent preset. `npm run build` there vendors src/framework
+                 bundled `octodeck-deck` skill (assets/). `npm run build` there vendors src/framework
                  and src/themes into the package so a published copy is self-contained.
                  Export launches no browser: the canvas measures the deck in a hidden
                  same-origin iframe and Node assembles the file.
@@ -66,7 +66,11 @@ packages/dsh-deck/  @onetest/dsh-deck — the DeepSeek Harness plugin: deck tool
 - **Verify by looking.** Screenshot every slide and bug-hunt with fresh eyes; the first
   render is rarely right. Use `skills/octodeck-presentations/scripts/capture_slides.mjs`.
 - The **deck-building methodology lives in the `octodeck-presentations` skill** — read it
-  (and its `references/`) before building/reviewing slides or exporting.
+  (and its `references/`) before building/reviewing slides or exporting. That skill covers
+  this repo's own workflow (`src/decks/`, the dev server on :9001). The harness plugin's
+  workflow (`.deck/<name>/`, `deck_create`/`deck_view`) is its own bundled skill,
+  `packages/dsh-deck/assets/octodeck-deck.md` — the two share the framework rules, so a
+  change to those belongs in both.
 
 ## Gotchas that have bitten
 
